@@ -17,7 +17,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [showNotify, setShowNotify] = useState(false);
   const [notifyTitle, setNotifyTitle] = useState('Important Message');
   const [notifyMessage, setNotifyMessage] = useState('');
-  
+
   const [showBan, setShowBan] = useState(false);
   const [banReason, setBanReason] = useState('');
 
@@ -59,8 +59,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          title: notifyTitle, 
+        body: JSON.stringify({
+          title: notifyTitle,
           message: notifyMessage,
           sendNotification,
           sendTelegram
@@ -68,7 +68,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       });
       const data = await res.json();
       if (data.success) {
-        alert('Notification dispatched successfully');
         setShowNotify(false);
         setNotifyMessage('');
       }
@@ -107,7 +106,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     <div className="page-container">
       {/* Header Area */}
       <div style={{ marginBottom: 32 }}>
-        <button 
+        <button
           onClick={() => router.push('/admin/users')}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}
         >
@@ -115,8 +114,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-            <img 
-              src={user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.username} 
+            <img
+              src={user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.username}
               style={{ width: 80, height: 80, borderRadius: 20, border: '2px solid var(--accent-primary)', objectFit: 'cover' }}
             />
             <div>
@@ -200,7 +199,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   ) : matches.map(match => {
                     const isChallenger = match.challenger_id === user.id;
                     const opponent = isChallenger ? match.opponent : match.challenger;
-                    const result = match.status === 'COMPLETED' 
+                    const result = match.status === 'COMPLETED'
                       ? (match.winner_id === user.id ? 'WIN' : 'LOSS')
                       : match.status;
 
@@ -224,10 +223,10 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                           {formatCurrency(match.stake_amount)}
                         </td>
                         <td style={{ padding: '16px 12px' }}>
-                          <span style={{ 
-                            fontSize: 11, 
-                            fontWeight: 800, 
-                            padding: '3px 8px', 
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            padding: '3px 8px',
                             borderRadius: 6,
                             background: result === 'WIN' ? 'rgba(34,197,94,0.15)' : (result === 'LOSS' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'),
                             color: result === 'WIN' ? 'var(--neon-green)' : (result === 'LOSS' ? 'var(--neon-red)' : 'var(--text-muted)')
@@ -236,8 +235,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                           </span>
                         </td>
                         <td style={{ padding: '16px 32px', textAlign: 'right' }}>
-                          <button 
-                            className="btn-secondary btn-sm" 
+                          <button
+                            className="btn-secondary btn-sm"
                             onClick={() => router.push(`/admin/matches/${match.id}`)}
                           >
                             Details
@@ -288,39 +287,39 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <form onSubmit={handleNotify}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Subject</label>
-                <input 
-                  type="text" 
-                  className="input-field" 
-                  value={notifyTitle} 
+                <input
+                  type="text"
+                  className="input-field"
+                  value={notifyTitle}
                   onChange={e => setNotifyTitle(e.target.value)}
-                  required 
+                  required
                 />
               </div>
               <div style={{ marginBottom: 24 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Payload Message</label>
-                <textarea 
-                  className="input-field" 
-                  value={notifyMessage} 
+                <textarea
+                  className="input-field"
+                  value={notifyMessage}
                   onChange={e => setNotifyMessage(e.target.value)}
                   style={{ height: 120, resize: 'none' }}
-                  required 
+                  required
                 ></textarea>
               </div>
 
               <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={sendNotification} 
+                  <input
+                    type="checkbox"
+                    checked={sendNotification}
                     onChange={e => setSendNotification(e.target.checked)}
                     style={{ accentColor: 'var(--accent-primary)' }}
                   />
                   <span>Internal Notification</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={sendTelegram} 
+                  <input
+                    type="checkbox"
+                    checked={sendTelegram}
                     onChange={e => setSendTelegram(e.target.checked)}
                     disabled={!user.telegram_id}
                     style={{ accentColor: 'var(--accent-primary)' }}
@@ -352,12 +351,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               {!user.is_banned && (
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Violation Reason</label>
-                  <textarea 
-                    className="input-field" 
-                    value={banReason} 
+                  <textarea
+                    className="input-field"
+                    value={banReason}
                     onChange={e => setBanReason(e.target.value)}
                     style={{ height: 100, resize: 'none' }}
-                    required 
+                    required
                   ></textarea>
                 </div>
               )}

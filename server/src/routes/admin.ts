@@ -282,7 +282,7 @@ router.post('/users/:id/notify', async (req: Request, res: Response): Promise<vo
     }
 
     if (sendTelegram && user.telegram_id) {
-      const tgMsg = `🔔 <b>${title}</b>\n\n${message}`;
+      const tgMsg = `<b>${title}</b>\n\n${message}`;
       await sendDirectMessage(user.telegram_id, tgMsg);
     } else if (sendTelegram && !user.telegram_id) {
       // If we don't have their ID, we can't send a DM. 
