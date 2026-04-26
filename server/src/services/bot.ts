@@ -140,6 +140,15 @@ async function handlePlayerJoin(chatId: string, tgUserId: number, tgUsername: st
       return;
     }
 
+    // UPDATE: Save telegram_id if missing
+    if (!user.telegram_id) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { telegram_id: tgUserId.toString() }
+      });
+      console.log(`[BOT] 🆔 Linked Telegram ID ${tgUserId} to user ${user.username}`);
+    }
+
     // Check if user is already in another live match
     const liveStatuses = ['PENDING_JOIN', 'ACTIVE', 'ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'];
     const existingLive = await prisma.match.findFirst({
@@ -398,6 +407,36 @@ export function createBot(): Bot {
 
   bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 
+  // Global ID Linker Middleware
+  bot.on('message', async (ctx, next) => {
+    const tgUserId = ctx.from?.id?.toString();
+    const username = ctx.from?.username;
+
+    if (tgUserId && username) {
+      console.log(`[BOT] 🔍 Global Linker: Checking @${username} (${tgUserId})`);
+      try {
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { telegram_username: { equals: username, mode: 'insensitive' } },
+              { telegram_username: { equals: `@${username}`, mode: 'insensitive' } }
+            ]
+          }
+        });
+
+        if (user && !user.telegram_id) {
+          // Clear ID from others and link to this user
+          await prisma.user.updateMany({ where: { telegram_id: tgUserId }, data: { telegram_id: null } });
+          await prisma.user.update({ where: { id: user.id }, data: { telegram_id: tgUserId } });
+          console.log(`[BOT] 🆔 Linked ID ${tgUserId} to @${username}`);
+        }
+      } catch (err) {
+        console.warn('[BOT] Global Linker Error:', err);
+      }
+    }
+    return next();
+  });
+
   // Verify bot identity on startup
   bot.api.getMe().then(me => {
     console.log(`[BOT] 🤖 Bot authenticated successfully as @${me.username} (ID: ${me.id})`);
@@ -652,16 +691,54 @@ export function createBot(): Bot {
     if (ctx.message.text.startsWith('/')) return;
   });
 
-  // Handle Join Requests for Challenger Phase 1
+    // Handle Join Requests for Challenger Phase 1
   bot.on('chat_join_request', async (ctx) => {
     const chatId = ctx.chat.id.toString();
     const tgUserId = ctx.from.id;
     const tgUsername = ctx.from.username || '';
-    const joinedUsername = tgUsername.toLowerCase();
     
-    const room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
+    console.log(`[BOT] 📥 Received chat_join_request from @${tgUsername} (${tgUserId}) for chat ${chatId}`);
+
+    // PHASE 0: Link ID immediately so we have it even if we decline the join
+    if (tgUsername) {
+      try {
+        await prisma.user.updateMany({
+          where: { telegram_id: tgUserId.toString() },
+          data: { telegram_id: null }
+        });
+        await prisma.user.updateMany({
+          where: { 
+            OR: [
+              { telegram_username: { equals: tgUsername, mode: 'insensitive' } },
+              { telegram_username: { equals: `@${tgUsername}`, mode: 'insensitive' } }
+            ]
+          },
+          data: { telegram_id: tgUserId.toString() }
+        });
+        console.log(`[BOT] 🆔 Identity linked for @${tgUsername} during join request.`);
+      } catch (err) {
+        console.warn('[BOT] Identity linking failed in join request:', err);
+      }
+    }
+
+    // Race condition protection: Retry once after 1.5s if no match found
+    let room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
     if (!room || !room.current_match_id) {
+      console.log(`[BOT] ⏳ Match not found yet, retrying in 1.5s...`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
+    }
+
+    if (!room) {
+      console.log(`[BOT] 🚫 Decline Join: Room ${chatId} not in DB.`);
       await ctx.declineChatJoinRequest(tgUserId);
+      await sendDirectMessage(tgUserId.toString(), "❌ <b>Join Declined:</b> This room is not recognized by the system.");
+      return;
+    }
+    if (!room.current_match_id) {
+      console.log(`[BOT] 🚫 Decline Join: Room ${chatId} has no active match after retry.`);
+      await ctx.declineChatJoinRequest(tgUserId);
+      await sendDirectMessage(tgUserId.toString(), "❌ <b>Join Declined:</b> This room is currently empty or the match has expired.");
       return;
     }
 
@@ -673,10 +750,13 @@ export function createBot(): Bot {
     });
 
     if (!match || match.status !== 'PENDING_JOIN') {
+      console.log(`[BOT] 🚫 Decline Join: Match not found or not PENDING_JOIN. Status: ${match?.status}`);
       await ctx.declineChatJoinRequest(tgUserId);
+      await sendDirectMessage(tgUserId.toString(), "❌ <b>Join Declined:</b> The match in this room is no longer in the joining phase.");
       return;
     }
 
+    const joinedUsername = tgUsername.toLowerCase();
     const challengerTg = (match.challenger?.telegram_username || '').replace(/^@/, '').toLowerCase();
     const isChallengerJoining = challengerTg !== '' && joinedUsername === challengerTg;
 
@@ -691,10 +771,33 @@ export function createBot(): Bot {
       if (!user || !user.wallet || Number(user.wallet.balance) < stakeAmount) {
         console.log(`[BOT] 🚫 Declined join request for ${tgUsername}: Insufficient balance.`);
         await ctx.declineChatJoinRequest(tgUserId);
+        await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> Insufficient balance. You need at least ${stakeAmount} to enter this match.`);
         return;
       }
 
       console.log(`[BOT] ✅ Challenger @${tgUsername} approved for match ${match.id}`);
+      
+      // Save ID immediately upon approval (Non-blocking)
+      try {
+        // Clear this ID from any other user first to prevent unique constraint errors
+        await prisma.user.updateMany({
+          where: { telegram_id: tgUserId.toString() },
+          data: { telegram_id: null }
+        });
+
+        await prisma.user.updateMany({
+          where: { 
+            OR: [
+              { telegram_username: { equals: tgUsername, mode: 'insensitive' } },
+              { telegram_username: { equals: `@${tgUsername}`, mode: 'insensitive' } }
+            ]
+          },
+          data: { telegram_id: tgUserId.toString() }
+        });
+      } catch (err) {
+        console.warn('[BOT] Non-fatal error linking ID during approval:', err);
+      }
+
       await ctx.approveChatJoinRequest(tgUserId);
 
       // Freeze balance & generate direct invite link atomically
@@ -733,8 +836,9 @@ export function createBot(): Bot {
 
       emitMatchUpdate(match.id, { status: 'ACTIVE', matchId: match.id });
     } else {
-      console.log(`[BOT] 🚫 Declined join request for ${tgUsername}: Not the creator.`);
+      console.log(`[BOT] 🚫 Decline Join: Username @${joinedUsername} does not match challenger @${challengerTg}`);
       await ctx.declineChatJoinRequest(tgUserId);
+      await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> You are not the authorized challenger for this match. This room is reserved for other player.`);
     }
   });
 
@@ -750,6 +854,24 @@ export function createBot(): Bot {
 
   console.log('[BOT] grammY bot created');
   return bot;
+}
+
+/**
+ * Send a direct message to a user via Telegram.
+ * Requires the user's numeric Telegram ID.
+ */
+export async function sendDirectMessage(tgUserId: string, message: string): Promise<boolean> {
+  if (!bot || !env.TELEGRAM_BOT_TOKEN) return false;
+  const numId = Number(tgUserId);
+  if (isNaN(numId)) return false;
+  
+  try {
+    await bot.api.sendMessage(numId, message, { parse_mode: 'HTML' });
+    return true;
+  } catch (error) {
+    console.error(`[BOT] Failed to send DM to ${tgUserId}:`, error);
+    return false;
+  }
 }
 
 export function getBot(): Bot | null {
@@ -789,6 +911,7 @@ export async function generateInviteLink(chatId: string, linkName: string, fallb
   try {
     const options: any = {
       name: linkName,
+      expire_date: Math.floor(Date.now() / 1000) + 600, // 10 minutes from now
     };
     if (createsJoinRequest) {
       options.creates_join_request = true;

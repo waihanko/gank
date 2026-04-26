@@ -29,6 +29,7 @@ model User {
   email             String?  @unique
   username          String   @unique
   password_hash     String
+  telegram_id       String?  @unique
   telegram_username String   @unique
   telegram_display_name String?
   telegram_bio      String?

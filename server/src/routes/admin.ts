@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { adminMiddleware, generateAdminToken } from '../middleware/auth';
 import { z } from 'zod';
-import { kickAndWipeRoom } from '../services/bot';
+import { createBot, getBotWebhookHandler, sendDirectMessage, kickAndWipeRoom } from '../services/bot';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -43,11 +43,11 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       data: {
-        admin: { 
-          id: admin.id, 
-          email: admin.email, 
+        admin: {
+          id: admin.id,
+          email: admin.email,
           role: admin.role,
-          created_at: admin.created_at 
+          created_at: admin.created_at
         },
         token,
       },
@@ -71,31 +71,31 @@ router.put('/profile/password', async (req: Request, res: Response): Promise<voi
     res.status(400).json({ success: false, error: 'Both passwords required' });
     return;
   }
-  
+
   const adminId = req.admin?.adminId;
   if (!adminId) {
     res.status(401).json({ success: false, error: 'Unauthorized' });
     return;
   }
-  
+
   const admin = await prisma.admin.findUnique({ where: { id: adminId } });
   if (!admin) {
     res.status(404).json({ success: false, error: 'Admin not found' });
     return;
   }
-  
+
   const isValid = await bcrypt.compare(currentPassword, admin.password_hash);
   if (!isValid) {
     res.status(400).json({ success: false, error: 'Incorrect current password' });
     return;
   }
-  
+
   const hashed = await bcrypt.hash(newPassword, 10);
   await prisma.admin.update({
     where: { id: adminId },
     data: { password_hash: hashed }
   });
-  
+
   res.json({ success: true });
 });
 
@@ -105,8 +105,8 @@ router.get('/admins', async (req: Request, res: Response): Promise<void> => {
     res.status(403).json({ success: false, error: 'Super Admin only' });
     return;
   }
-  const admins = await prisma.admin.findMany({ 
-    select: { id: true, email: true, role: true, created_at: true, is_suspended: true } 
+  const admins = await prisma.admin.findMany({
+    select: { id: true, email: true, role: true, created_at: true, is_suspended: true }
   });
   res.json({ success: true, data: admins });
 });
@@ -149,7 +149,7 @@ router.put('/admins/:id', async (req: Request, res: Response): Promise<void> => 
   try {
     const adminId = req.params.id as string;
     const { email, role, password, is_suspended } = req.body;
-    
+
     const data: any = {};
     if (email) data.email = email;
     if (role) data.role = role;
@@ -265,19 +265,35 @@ router.post('/users/:id/ban', async (req: Request, res: Response): Promise<void>
 
 // POST /admin/users/:id/notify
 router.post('/users/:id/notify', async (req: Request, res: Response): Promise<void> => {
-  const { title, message } = req.body;
-  if (!title || !message) {
-    res.status(400).json({ success: false, error: 'Title and message required' });
-    return;
-  }
-  await prisma.notification.create({
-    data: {
-      user_id: req.params.id as string,
-      title,
-      message
+  const { title, message, sendNotification, sendTelegram } = req.body;
+  const userId = req.params.id as string;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
     }
-  });
-  res.json({ success: true });
+
+    if (sendNotification) {
+      await prisma.notification.create({
+        data: { user_id: userId, title, message }
+      });
+    }
+
+    if (sendTelegram && user.telegram_id) {
+      const tgMsg = `🔔 <b>${title}</b>\n\n${message}`;
+      await sendDirectMessage(user.telegram_id, tgMsg);
+    } else if (sendTelegram && !user.telegram_id) {
+      // If we don't have their ID, we can't send a DM. 
+      // This is a good place to log or return a warning.
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[ADMIN] Notify error:', error);
+    res.status(500).json({ success: false, error: 'Failed to process signal' });
+  }
 });
 
 // POST /admin/users/:id/unban
@@ -565,7 +581,7 @@ router.put('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const roomId = req.params.id as string;
     const { title, chat_id, invite_link } = req.body;
-    
+
     const room = await prisma.telegramRoom.findUnique({ where: { id: roomId } });
     if (!room) {
       res.status(404).json({ success: false, error: 'Room not found' });

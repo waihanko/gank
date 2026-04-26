@@ -15,14 +15,17 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [user, setUser] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modals
   const [showNotify, setShowNotify] = useState(false);
   const [notifyTitle, setNotifyTitle] = useState('Important Message');
   const [notifyMessage, setNotifyMessage] = useState('');
-  
+
   const [showBan, setShowBan] = useState(false);
   const [banReason, setBanReason] = useState('');
+
+  const [sendNotification, setSendNotification] = useState(true);
+  const [sendTelegram, setSendTelegram] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -38,7 +41,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       ]);
       const uData = await uRes.json();
       const mData = await mRes.json();
-      
+
       if (uData.success) setUser(uData.data);
       if (mData.success) setMatches(mData.data);
     } catch (e) {
@@ -51,7 +54,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   async function handleNotify(e: React.FormEvent) {
     e.preventDefault();
     if (!notifyTitle || !notifyMessage) return showAlert('Title and message required');
-    
+
     const token = localStorage.getItem('gr_admin_token');
     try {
       const res = await fetch(`${API_URL}/api/admin/users/${id}/notify`, {
@@ -60,7 +63,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ title: notifyTitle, message: notifyMessage })
+        body: JSON.stringify({
+          title: notifyTitle,
+          message: notifyMessage,
+          sendNotification,
+          sendTelegram
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -122,7 +130,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     <div className="page-container">
       {/* Header Area */}
       <div style={{ marginBottom: 32 }}>
-        <button 
+        <button
           onClick={() => router.push('/admin/users')}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}
         >
@@ -146,7 +154,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               )}
             </div>
           </div>
-          
+
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="btn-primary" onClick={() => setShowNotify(true)}>
               🔔 Send Notify
@@ -232,7 +240,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
           </div>
-          
+
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
@@ -252,7 +260,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 ) : matches.map(match => {
                   const isChallenger = match.challenger_id === user.id;
                   const opponent = isChallenger ? match.opponent : match.challenger;
-                  const result = match.status === 'COMPLETED' 
+                  const result = match.status === 'COMPLETED'
                     ? (match.winner_id === user.id ? 'WIN' : 'LOSS')
                     : match.status;
 
@@ -276,10 +284,10 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         {formatCurrency(match.stake_amount)}
                       </td>
                       <td style={{ padding: '16px 12px' }}>
-                        <span style={{ 
-                          fontSize: 11, 
-                          fontWeight: 800, 
-                          padding: '3px 8px', 
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          padding: '3px 8px',
                           borderRadius: 6,
                           background: result === 'WIN' ? 'rgba(34,197,94,0.15)' : (result === 'LOSS' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'),
                           color: result === 'WIN' ? 'var(--neon-green)' : (result === 'LOSS' ? 'var(--neon-red)' : 'var(--text-muted)')
@@ -288,7 +296,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         </span>
                       </td>
                       <td style={{ padding: '16px 32px', textAlign: 'right' }}>
-                        <button 
+                        <button
                           className="btn-secondary btn-sm"
                           onClick={() => window.location.href = `/admin/matches/${match.id}`}
                         >
@@ -330,6 +338,30 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   style={{ height: 120, resize: 'none' }}
                   required
                 ></textarea>
+              </div>
+
+              <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={sendNotification}
+                    onChange={e => setSendNotification(e.target.checked)}
+                    style={{ accentColor: 'var(--accent-primary)' }}
+                  />
+                  <span>Internal Notification</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={sendTelegram}
+                    onChange={e => setSendTelegram(e.target.checked)}
+                    disabled={!user.telegram_id}
+                    style={{ accentColor: 'var(--accent-primary)' }}
+                  />
+                  <span style={{ color: user.telegram_id ? 'inherit' : 'var(--text-muted)' }}>
+                    Telegram Alert {!user.telegram_id && '(No ID)'}
+                  </span>
+                </label>
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
                 <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowNotify(false)}>Abort</button>
