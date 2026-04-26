@@ -3,6 +3,7 @@
 import StatusBadge from '@/components/StatusBadge';
 import { formatCurrency, formatDate, formatRelativeTime, shortenId } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -16,7 +17,7 @@ export default function AdminMatchesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const matchesPerPage = 20;
-
+  const router = useRouter();
   const statuses = ['All', 'OPEN', 'ACCEPTED', 'BATTLE', 'COMPLETED', 'DISPUTED'];
 
   // Set default dates to today
@@ -135,10 +136,7 @@ export default function AdminMatchesPage() {
                 <th>Challenger</th>
                 <th>Opponent</th>
                 <th>Stake</th>
-                <th>Total Pot</th>
                 <th>Status</th>
-                <th>Match Code</th>
-                <th>Winner</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -146,15 +144,48 @@ export default function AdminMatchesPage() {
             <tbody>
               {filtered.map((match) => (
                 <tr key={match.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>{shortenId(match.id)}</td>
+                  <td 
+                    style={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: 12, 
+                      fontWeight: 600, 
+                      cursor: 'pointer',
+                      color: 'var(--text-primary)' 
+                    }}
+                    title="Click to copy full ID"
+                    onClick={() => {
+                      navigator.clipboard.writeText(match.id);
+                      // Minimal visual feedback
+                      const cell = document.getElementById(`id-cell-${match.id}`);
+                      if (cell) {
+                        const original = cell.innerText;
+                        cell.innerText = 'Copied!';
+                        setTimeout(() => { cell.innerText = original; }, 1000);
+                      }
+                    }}
+                  >
+                    <span id={`id-cell-${match.id}`}>{shortenId(match.id)}</span>
+                  </td>
                   <td>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{match.challenger?.username}</div>
+                    <div style={{ 
+                      fontWeight: 600, 
+                      fontSize: 13, 
+                      color: match.winner_id === match.challenger_id ? 'var(--neon-yellow)' : 'var(--text-primary)' 
+                    }}>
+                      {match.winner_id === match.challenger_id && '🏆 '}{match.challenger?.username}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{match.challenger?.mlbb_ign}</div>
                   </td>
                   <td>
                     {match.opponent ? (
                       <>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{match.opponent?.username}</div>
+                        <div style={{ 
+                          fontWeight: 600, 
+                          fontSize: 13, 
+                          color: match.winner_id === match.opponent_id ? 'var(--neon-yellow)' : 'var(--text-primary)' 
+                        }}>
+                          {match.winner_id === match.opponent_id && '🏆 '}{match.opponent?.username}
+                        </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{match.opponent?.mlbb_ign}</div>
                       </>
                     ) : (
@@ -164,24 +195,7 @@ export default function AdminMatchesPage() {
                   <td className="font-display" style={{ fontWeight: 600, color: 'var(--neon-yellow)', fontSize: 13 }}>
                     {formatCurrency(match.stake_amount)}
                   </td>
-                  <td className="font-display" style={{ fontWeight: 600, fontSize: 13 }}>
-                    {match.total_pot > 0 ? formatCurrency(match.total_pot) : '—'}
-                  </td>
                   <td><StatusBadge status={match.status} size="sm" /></td>
-                  <td>
-                    {match.match_code ? (
-                      <span className="font-display" style={{ fontSize: 14, fontWeight: 700, color: 'var(--neon-yellow)', letterSpacing: 2 }}>
-                        {match.match_code}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td>
-                    {match.winner_id ? (
-                      <span style={{ color: 'var(--neon-green)', fontWeight: 600, fontSize: 13 }}>
-                        🏆 {match.winner_id === match.challenger_id ? match.challenger?.username : match.opponent?.username}
-                      </span>
-                    ) : '—'}
-                  </td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatRelativeTime(match.created_at)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
@@ -191,7 +205,13 @@ export default function AdminMatchesPage() {
                       {(match.status === 'OPEN' || match.status === 'WAITING') && (
                         <button className="btn-secondary btn-sm" style={{ fontSize: 11 }}>Void</button>
                       )}
-                      <button className="btn-secondary btn-sm" style={{ fontSize: 11 }}>Details</button>
+                      <button 
+                        className="btn-secondary btn-sm" 
+                        style={{ fontSize: 11 }}
+                        onClick={() => router.push(`/admin/matches/${match.id}`)}
+                      >
+                        Details
+                      </button>
                     </div>
                   </td>
                 </tr>

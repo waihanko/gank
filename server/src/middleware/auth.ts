@@ -23,7 +23,10 @@ declare global {
   }
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     res.status(401).json({ success: false, error: 'No token provided' });
@@ -32,6 +35,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
+    
+    // Verify user exists and is not banned
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (!user || user.is_banned) {
+      res.status(401).json({ success: false, error: 'Account disabled or removed' });
+      return;
+    }
+
     req.user = decoded;
     next();
   } catch {
@@ -39,7 +50,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 }
 
-export function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function adminMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     res.status(401).json({ success: false, error: 'No admin token provided' });
@@ -49,9 +60,22 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
     const token = header.split(' ')[1];
     const secret = env.ADMIN_SECRET_KEY || env.JWT_SECRET;
     const decoded = jwt.verify(token, secret) as AdminAuthPayload;
+    
     if (!decoded.adminId) {
       throw new Error('Not an admin token');
     }
+
+    // CRITICAL: Check if admin still exists in DB and is not suspended
+    const admin = await prisma.admin.findUnique({ where: { id: decoded.adminId } });
+    if (!admin) {
+      res.status(403).json({ success: false, error: 'Administrator access revoked' });
+      return;
+    }
+    if (admin.is_suspended) {
+      res.status(403).json({ success: false, error: 'Your account has been suspended' });
+      return;
+    }
+
     req.admin = decoded;
     next();
   } catch {

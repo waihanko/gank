@@ -27,10 +27,11 @@ function dedup(key: string): boolean {
 async function handlePlayerJoin(chatId: string, tgUserId: number, tgUsername: string, firstName: string) {
   const dedupKey = `join-${chatId}-${tgUserId}`;
   if (dedup(dedupKey)) {
-    console.log(`[BOT] ⏭️ Skipping duplicate join for @${tgUsername} in ${chatId}`);
+    console.log(`[BOT] ⏭️ Skipping duplicate join for @${tgUsername} (ID: ${tgUserId}) in chat ${chatId}`);
     return;
   }
 
+  console.log(`[BOT] 📥 Processing join event for @${tgUsername} (ID: ${tgUserId}) in chat ${chatId}`);
   const joinedUsername = tgUsername.toLowerCase();
   const displayName = tgUsername ? `@${tgUsername}` : firstName;
   const numericChatId = Number(chatId);
@@ -48,7 +49,15 @@ async function handlePlayerJoin(chatId: string, tgUserId: number, tgUsername: st
 
   // Find the room + active match
   const room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
-  if (!room || !room.current_match_id) return;
+  if (!room) {
+    console.log(`[BOT] ❌ UNKNOWN ROOM: Join event in chat ${chatId} but this room is not in the database!`);
+    return;
+  }
+  
+  if (!room.current_match_id) {
+    console.log(`[BOT] ℹ️ INACTIVE ROOM: Join event in chat ${chatId} but no active match is assigned to this room.`);
+    return;
+  }
 
   const match = await prisma.match.findUnique({
     where: { id: room.current_match_id },
@@ -57,7 +66,10 @@ async function handlePlayerJoin(chatId: string, tgUserId: number, tgUsername: st
       opponent: { select: { id: true, telegram_username: true, username: true } },
     },
   });
-  if (!match) return;
+  if (!match) {
+    console.log(`[BOT] ❌ MATCH NOT FOUND: Room ${chatId} claims to have match ${room.current_match_id} but it doesn't exist!`);
+    return;
+  }
 
   const kickUser = async (reason: string) => {
     console.log(`[BOT] 🚫 GATEKEEPER: ${displayName} — kicking. Reason: ${reason}`);
@@ -385,6 +397,13 @@ export function createBot(): Bot {
   }
 
   bot = new Bot(env.TELEGRAM_BOT_TOKEN);
+
+  // Verify bot identity on startup
+  bot.api.getMe().then(me => {
+    console.log(`[BOT] 🤖 Bot authenticated successfully as @${me.username} (ID: ${me.id})`);
+  }).catch(err => {
+    console.error(`[BOT] ❌ FATAL: Could not authenticate with Telegram token. Check your environment variables!`, err);
+  });
 
   // /start command
   bot.command('start', (ctx) => {

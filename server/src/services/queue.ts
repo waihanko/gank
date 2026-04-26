@@ -17,7 +17,7 @@ export function getRedisConnection(): IORedis {
 // ========================
 
 export const matchQueue = new Queue('match-jobs', {
-  connection: { host: 'localhost', port: 6379 },
+  connection: getRedisConnection(),
   defaultJobOptions: { removeOnComplete: true, removeOnFail: 100 },
 });
 
@@ -82,10 +82,14 @@ export async function schedulePendingJoinTimeout(matchId: string) {
 }
 
 export async function cancelJob(jobId: string) {
-  const job = await matchQueue.getJob(jobId);
-  if (job) {
-    await job.remove();
-    console.log(`[JOB] Canceled job ${jobId}`);
+  try {
+    const job = await matchQueue.getJob(jobId);
+    if (job) {
+      await job.remove();
+      console.log(`[JOB] Canceled job ${jobId}`);
+    }
+  } catch (err) {
+    console.warn(`[JOB] Failed to cancel job ${jobId} (Redis might be down):`, (err as Error).message);
   }
 }
 
@@ -178,7 +182,7 @@ export function startMatchWorker() {
       }
     }
   }, {
-    connection: { host: 'localhost', port: 6379 },
+    connection: getRedisConnection(),
     concurrency: 5,
   });
 

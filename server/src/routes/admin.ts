@@ -23,6 +23,11 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    if (admin.is_suspended) {
+      res.status(403).json({ success: false, error: 'ACCOUNT_SUSPENDED' });
+      return;
+    }
+
     const valid = await bcrypt.compare(password, admin.password_hash);
     if (!valid) {
       res.status(401).json({ success: false, error: 'Invalid credentials' });
@@ -38,7 +43,12 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       data: {
-        admin: { id: admin.id, email: admin.email, role: admin.role },
+        admin: { 
+          id: admin.id, 
+          email: admin.email, 
+          role: admin.role,
+          created_at: admin.created_at 
+        },
         token,
       },
     });
@@ -95,7 +105,9 @@ router.get('/admins', async (req: Request, res: Response): Promise<void> => {
     res.status(403).json({ success: false, error: 'Super Admin only' });
     return;
   }
-  const admins = await prisma.admin.findMany({ select: { id: true, email: true, role: true, created_at: true } });
+  const admins = await prisma.admin.findMany({ 
+    select: { id: true, email: true, role: true, created_at: true, is_suspended: true } 
+  });
   res.json({ success: true, data: admins });
 });
 
@@ -120,11 +132,38 @@ router.post('/admins', async (req: Request, res: Response): Promise<void> => {
     const hash = await bcrypt.hash(password, 10);
     const newAdmin = await prisma.admin.create({
       data: { email, password_hash: hash, role: 'NORMAL_ADMIN' },
-      select: { id: true, email: true, role: true, created_at: true },
+      select: { id: true, email: true, role: true, created_at: true, is_suspended: true },
     });
     res.json({ success: true, data: newAdmin });
   } catch (error) {
     res.status(400).json({ success: false, error: 'Failed to create admin' });
+  }
+});
+
+// PUT /admin/admins/:id — update admin (Super Admin only)
+router.put('/admins/:id', async (req: Request, res: Response): Promise<void> => {
+  if (req.admin?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ success: false, error: 'Super Admin only' });
+    return;
+  }
+  try {
+    const adminId = req.params.id as string;
+    const { email, role, password, is_suspended } = req.body;
+    
+    const data: any = {};
+    if (email) data.email = email;
+    if (role) data.role = role;
+    if (password) data.password_hash = await bcrypt.hash(password, 10);
+    if (typeof is_suspended === 'boolean') data.is_suspended = is_suspended;
+
+    const updated = await prisma.admin.update({
+      where: { id: adminId },
+      data,
+      select: { id: true, email: true, role: true, created_at: true, is_suspended: true }
+    });
+    res.json({ success: true, data: updated });
+  } catch {
+    res.status(400).json({ success: false, error: 'Failed to update admin' });
   }
 });
 
@@ -181,6 +220,39 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
   res.json({ success: true, data: users });
 });
 
+// GET /admin/users/:id — get user details
+router.get('/users/:id', async (req: Request, res: Response): Promise<void> => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.params.id as string },
+    include: { wallet: true }
+  });
+  if (!user) {
+    res.status(404).json({ success: false, error: 'User not found' });
+    return;
+  }
+  res.json({ success: true, data: user });
+});
+
+// GET /admin/users/:id/matches — get user match history
+router.get('/users/:id/matches', async (req: Request, res: Response): Promise<void> => {
+  const matches = await prisma.match.findMany({
+    where: {
+      OR: [
+        { challenger_id: req.params.id as string },
+        { opponent_id: req.params.id as string }
+      ]
+    },
+    include: {
+      challenger: { select: { username: true, mlbb_ign: true } },
+      opponent: { select: { username: true, mlbb_ign: true } },
+      winner: { select: { username: true } },
+      room: { select: { title: true } }
+    },
+    orderBy: { created_at: 'desc' }
+  });
+  res.json({ success: true, data: matches });
+});
+
 // POST /admin/users/:id/ban
 router.post('/users/:id/ban', async (req: Request, res: Response): Promise<void> => {
   const { reason } = req.body;
@@ -229,6 +301,87 @@ router.get('/matches', async (req: Request, res: Response): Promise<void> => {
     take: 100,
   });
   res.json({ success: true, data: matches });
+});
+
+// POST /admin/matches/:id/void — Void match and refund players
+router.post('/matches/:id/void', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const matchId = req.params.id as string;
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: { room: true }
+    });
+
+    if (!match) {
+      res.status(404).json({ success: false, error: 'Match not found' });
+      return;
+    }
+
+    if (['COMPLETED', 'VOIDED', 'CANCELLED'].includes(match.status)) {
+      res.status(400).json({ success: false, error: 'Match already finished' });
+      return;
+    }
+
+    const stakeAmount = Number(match.stake_amount);
+
+    await prisma.$transaction(async (tx: any) => {
+      // Void the match
+      await tx.match.update({
+        where: { id: matchId },
+        data: { status: 'VOIDED', completed_at: new Date() }
+      });
+
+      // Refund challenger
+      const challengerWallet = await tx.wallet.findUnique({ where: { user_id: match.challenger_id } });
+      if (challengerWallet) {
+        await tx.wallet.update({
+          where: { user_id: match.challenger_id },
+          data: { balance: { increment: stakeAmount }, frozen_amount: { decrement: stakeAmount } }
+        });
+        await tx.transaction.create({
+          data: { wallet_id: challengerWallet.id, user_id: match.challenger_id, type: 'RELEASE', amount: stakeAmount, description: 'Match voided by admin - stake refunded', match_id: matchId }
+        });
+      }
+
+      // Refund opponent (if exists and joined)
+      if (match.opponent_id) {
+        const opponentWallet = await tx.wallet.findUnique({ where: { user_id: match.opponent_id } });
+        if (opponentWallet) {
+          await tx.wallet.update({
+            where: { user_id: match.opponent_id },
+            data: { balance: { increment: stakeAmount }, frozen_amount: { decrement: stakeAmount } }
+          });
+          await tx.transaction.create({
+            data: { wallet_id: opponentWallet.id, user_id: match.opponent_id, type: 'RELEASE', amount: stakeAmount, description: 'Match voided by admin - stake refunded', match_id: matchId }
+          });
+        }
+      }
+
+      // Notification
+      await tx.notification.create({ data: { user_id: match.challenger_id, title: 'Match Voided ↩️', message: 'Admin has voided your match. Your stake has been refunded to your balance.' } });
+      if (match.opponent_id) {
+        await tx.notification.create({ data: { user_id: match.opponent_id, title: 'Match Voided ↩️', message: 'Admin has voided your match. Your stake has been refunded to your balance.' } });
+      }
+
+      // Free Room
+      if (match.room_id) {
+        await tx.telegramRoom.update({
+          where: { id: match.room_id },
+          data: { status: 'AVAILABLE', current_match_id: null }
+        });
+      }
+    });
+
+    // Cleanup Telegram Room
+    if (match.room?.chat_id) {
+      kickAndWipeRoom(match.room.chat_id, matchId).catch(e => console.error('[ADMIN] Void room cleanup fail:', e));
+    }
+
+    res.json({ success: true, message: 'Match voided and players refunded' });
+  } catch (error) {
+    console.error('[ADMIN] Void match error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
 });
 
 // GET /admin/disputes
@@ -375,6 +528,20 @@ router.get('/rooms', async (req: Request, res: Response): Promise<void> => {
   res.json({ success: true, data: rooms });
 });
 
+// GET /admin/rooms/:id
+router.get('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const room = await prisma.telegramRoom.findUnique({ where: { id: req.params.id as string } });
+    if (!room) {
+      res.status(404).json({ success: false, error: 'Room not found' });
+      return;
+    }
+    res.json({ success: true, data: room });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to fetch room' });
+  }
+});
+
 // POST /admin/rooms
 const createRoomSchema = z.object({
   chat_id: z.string().min(1),
@@ -445,6 +612,25 @@ router.patch('/rooms/:id/status', async (req: Request, res: Response): Promise<v
     res.json({ success: true, data: updated });
   } catch {
     res.status(500).json({ success: false, error: 'Failed to update room status' });
+  }
+});
+
+// GET /admin/rooms/:id/matches — list matches for a specific room
+router.get('/rooms/:id/matches', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const roomId = req.params.id as string;
+    const matches = await prisma.match.findMany({
+      where: { room_id: roomId },
+      include: {
+        challenger: { select: { username: true } },
+        opponent: { select: { username: true } },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: matches });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to fetch room matches' });
   }
 });
 

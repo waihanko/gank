@@ -25,6 +25,10 @@ export function formatRelativeTime(dateString: string): string {
 
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 2) {
+    const remMinutes = minutes % 60;
+    return remMinutes > 0 ? `${hours}h ${remMinutes}m ago` : `${hours}h ago`;
+  }
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
   return formatDate(dateString);
@@ -38,6 +42,16 @@ export function getWinRate(wins: number, losses: number): string {
   const total = wins + losses;
   if (total === 0) return '0%';
   return ((wins / total) * 100).toFixed(1) + '%';
+}
+
+export function formatDuration(start: string, end: string): string {
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  const totalMinutes = Math.floor(diff / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  if (hours === 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
 }
 
 export function shortenId(id: string): string {

@@ -35,7 +35,7 @@ export const MATCH_STATUS_CONFIG: Record<string, { label: string; color: string;
   VERIFICATION: { label: 'Verifying', color: '#6366f1', bgColor: 'rgba(99,102,241,0.15)' },
   COMPLETED: { label: 'Completed', color: '#10b981', bgColor: 'rgba(16,185,129,0.15)' },
   DISPUTED: { label: 'Disputed', color: '#f43f5e', bgColor: 'rgba(244,63,94,0.15)' },
-  VOIDED: { label: 'Voided', color: '#6b7280', bgColor: 'rgba(107,114,128,0.15)' },
+  VOIDED: { label: 'Voided', color: '#ef4444', bgColor: 'rgba(239,68,68,0.15)' },
   CANCELLED: { label: 'Cancelled', color: '#6b7280', bgColor: 'rgba(107,114,128,0.15)' },
   ARCHIVED: { label: 'Archived', color: '#9ca3af', bgColor: 'rgba(156,163,175,0.15)' },
 };

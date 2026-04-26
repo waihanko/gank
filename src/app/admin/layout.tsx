@@ -17,25 +17,34 @@ const ICON_MAP: Record<string, string> = {
 };
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
     if (pathname === '/admin/login') {
-      setIsAdmin(true);
+      setIsAuthChecking(false);
       return;
     }
+    
     const token = localStorage.getItem('gr_admin_token');
     if (!token) {
-      window.location.href = '/admin/login';
+      router.replace('/admin/login');
     } else {
-      setIsAdmin(true);
+      setIsAuthChecking(false);
     }
-  }, [pathname]);
+  }, [pathname, router]);
 
-  if (!isAdmin) return null;
+  if (isAuthChecking && pathname !== '/admin/login') {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Authenticating...</div>
+      </div>
+    );
+  }
 
   if (pathname === '/admin/login') {
     return <>{children}</>;

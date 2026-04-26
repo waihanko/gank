@@ -229,10 +229,13 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         throw new Error('ROOM_TAKEN');
       }
 
-      // 4. Mark room as occupied
+      // 4. Mark room as occupied and increment hosted count
       await tx.telegramRoom.update({
         where: { id: availableRoom.id },
-        data: { status: 'OCCUPIED' },
+        data: { 
+          status: 'OCCUPIED',
+          total_matches_hosted: { increment: 1 }
+        },
       });
 
       return tx.match.create({

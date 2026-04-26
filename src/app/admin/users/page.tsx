@@ -2,17 +2,18 @@
 
 import { formatCurrency, formatDate, getWinRate } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDialog } from '@/lib/dialog-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const { showAlert } = useDialog();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showBanned, setShowBanned] = useState(false);
-  const [notifyModal, setNotifyModal] = useState<{ show: boolean, userId: string, title: string, message: string }>({ show: false, userId: '', title: '', message: '' });
 
   useEffect(() => {
     fetchUsers();
@@ -41,25 +42,6 @@ export default function AdminUsersPage() {
     const matchesBanned = showBanned ? u.is_banned : true;
     return matchesSearch && matchesBanned;
   });
-
-  async function handleSendNotification() {
-    if (!notifyModal.title || !notifyModal.message) return showAlert('Title and message required');
-    const token = localStorage.getItem('gr_admin_token');
-    try {
-      await fetch(`${API_URL}/api/admin/users/${notifyModal.userId}/notify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ title: notifyModal.title, message: notifyModal.message })
-      });
-      showAlert('Notification sent!');
-      setNotifyModal({ show: false, userId: '', title: '', message: '' });
-    } catch {
-      showAlert('Failed to send notification');
-    }
-  }
 
   return (
     <div className="page-container">
@@ -204,47 +186,19 @@ export default function AdminUsersPage() {
               )}
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {user.is_banned ? (
-                  <button className="btn-success btn-sm" style={{ flex: 1 }}>Unban</button>
-                ) : (
-                  <button className="btn-danger btn-sm" style={{ flex: 1 }}>Ban</button>
-                )}
-                <button className="btn-primary btn-sm" style={{ flex: 1 }} onClick={() => setNotifyModal({ show: true, userId: user.id, title: 'Admin Message', message: '' })}>Notify</button>
-                <button className="btn-secondary btn-sm" style={{ flex: 1 }}>History</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button 
+                  className="btn-secondary" 
+                  style={{ width: '100%', padding: '12px', fontSize: 13, fontWeight: 700 }}
+                  onClick={() => router.push(`/admin/users/${user.id}`)}
+                >
+                  👤 View Full Profile
+                </button>
               </div>
             </div>
           );
         })}
       </div>
-      )}
-
-      {/* Notify Modal */}
-      {notifyModal.show && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="glass-card" style={{ width: 400, padding: 24 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Send Notification</h3>
-            <input
-              type="text"
-              placeholder="Title"
-              className="input-field"
-              value={notifyModal.title}
-              onChange={e => setNotifyModal({ ...notifyModal, title: e.target.value })}
-              style={{ width: '100%', marginBottom: 12 }}
-            />
-            <textarea
-              placeholder="Message..."
-              className="input-field"
-              value={notifyModal.message}
-              onChange={e => setNotifyModal({ ...notifyModal, message: e.target.value })}
-              style={{ width: '100%', height: 100, marginBottom: 16, resize: 'none' }}
-            />
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setNotifyModal({ show: false, userId: '', title: '', message: '' })}>Cancel</button>
-              <button className="btn-primary" style={{ flex: 1 }} onClick={handleSendNotification}>Send</button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

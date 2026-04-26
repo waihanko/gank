@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useDialog } from '@/lib/dialog-context';
 
 export default function AdminLoginPage() {
+  const { showAlert } = useDialog();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +27,12 @@ export default function AdminLoginPage() {
         localStorage.setItem('gr_admin_user', JSON.stringify(data.data.admin));
         window.location.href = '/admin';
       } else {
-        setError(data.error || 'Login failed');
+        if (data.error === 'ACCOUNT_SUSPENDED') {
+          showAlert('🚫 Access Denied: Your administrator account has been suspended by a Super Admin. Please contact the system owner.');
+          setError('Account Suspended');
+        } else {
+          setError(data.error || 'Login failed');
+        }
       }
     } catch {
       setError('Network error');

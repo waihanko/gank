@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { formatDate } from '@/lib/utils';
 import { useDialog } from '@/lib/dialog-context';
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -26,15 +27,13 @@ export default function AdminRoomsPage() {
   const [chatId, setChatId] = useState('');
   const [inviteLink, setInviteLink] = useState('');
 
-  // Edit room form
-  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editChatId, setEditChatId] = useState('');
-  const [editInviteLink, setEditInviteLink] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
     fetchRooms();
   }, [filter]);
+
+
 
   async function fetchRooms() {
     setLoading(true);
@@ -92,53 +91,6 @@ export default function AdminRoomsPage() {
     } catch {
       showAlert('Failed to update status');
     }
-  }
-
-  function startEdit(room: any) {
-    setEditingRoomId(room.id);
-    setEditTitle(room.title);
-    setEditChatId(room.chat_id);
-    setEditInviteLink(room.invite_link);
-  }
-
-  async function handleEditSave(id: string) {
-    const token = localStorage.getItem('gr_admin_token');
-    try {
-      const res = await fetch(`${API_URL}/api/admin/rooms/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: editTitle, chat_id: editChatId, invite_link: editInviteLink }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditingRoomId(null);
-        fetchRooms();
-      } else {
-        showAlert(data.error);
-      }
-    } catch {
-      showAlert('Failed to update room');
-    }
-  }
-
-  async function handleDelete(id: string, title: string) {
-    showConfirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`, async () => {
-      const token = localStorage.getItem('gr_admin_token');
-      try {
-        const res = await fetch(`${API_URL}/api/admin/rooms/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data.success) {
-          fetchRooms();
-        } else {
-          showAlert(data.error);
-        }
-      } catch {
-        showAlert('Failed to delete room');
-      }
-    });
   }
 
   const availableCount = rooms.filter(r => r.status === 'AVAILABLE').length;
@@ -225,115 +177,82 @@ export default function AdminRoomsPage() {
           {rooms.map((room) => {
             const config = ROOM_STATUS_CONFIG[room.status] || ROOM_STATUS_CONFIG.DISABLED;
             return (
-              <div key={room.id} className="glass-card" style={{ padding: 24 }}>
-                {editingRoomId === room.id ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Edit Room</div>
-                    <div>
-                      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Title</label>
-                      <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="input-field" style={{ padding: '8px' }} />
+              <div 
+                key={room.id} 
+                className="glass-card" 
+                style={{ 
+                  padding: 24, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  height: '100%',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onClick={() => router.push(`/admin/rooms/${room.id}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)';
+                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px var(--accent-glow)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.borderColor = 'var(--glass-border)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 14,
+                        background: room.status === 'AVAILABLE' 
+                          ? 'linear-gradient(135deg, var(--neon-green), #22c55e)'
+                          : room.status === 'OCCUPIED'
+                          ? 'linear-gradient(135deg, var(--neon-red), #ef4444)'
+                          : room.status === 'PAUSED'
+                          ? 'linear-gradient(135deg, var(--neon-yellow), #eab308)'
+                          : 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
+                      }}
+                    >
+                      {room.status === 'AVAILABLE' ? '💬' : room.status === 'OCCUPIED' ? '⚔️' : room.status === 'PAUSED' ? '⏸️' : '🔒'}
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chat ID</label>
-                      <input type="text" value={editChatId} onChange={e => setEditChatId(e.target.value)} className="input-field" style={{ padding: '8px' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Invite Link</label>
-                      <input type="url" value={editInviteLink} onChange={e => setEditInviteLink(e.target.value)} className="input-field" style={{ padding: '8px' }} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <button className="btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => setEditingRoomId(null)}>Cancel</button>
-                      <button className="btn-primary btn-sm" style={{ flex: 1 }} onClick={() => handleEditSave(room.id)}>Save Changes</button>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{room.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{room.chat_id}</div>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    {/* Header with icon and status */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 14,
-                            background: room.status === 'AVAILABLE' 
-                              ? 'linear-gradient(135deg, var(--neon-green), #22c55e)'
-                              : room.status === 'OCCUPIED'
-                              ? 'linear-gradient(135deg, var(--neon-red), #ef4444)'
-                              : room.status === 'PAUSED'
-                              ? 'linear-gradient(135deg, var(--neon-yellow), #eab308)'
-                              : 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 20,
-                          }}
-                        >
-                          {room.status === 'AVAILABLE' ? '💬' : room.status === 'OCCUPIED' ? '⚔️' : room.status === 'PAUSED' ? '⏸️' : '🔒'}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15 }}>{room.title}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{room.chat_id}</div>
-                        </div>
-                      </div>
-                      <span style={{ background: config.bgColor, color: config.color, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                        {config.label}
-                      </span>
-                    </div>
+                  <span style={{ background: config.bgColor, color: config.color, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                    {config.label}
+                  </span>
+                </div>
 
-                    {/* Info Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16, fontSize: 12 }}>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Hosted: </span>
-                        <span style={{ fontWeight: 600, color: 'var(--neon-cyan)' }}>{room.total_matches_hosted || 0}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Since: </span>
-                        <span>{formatDate(room.created_at).split(',')[0]}</span>
-                      </div>
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Updated: </span>
-                        <span>{formatDate(room.updated_at)}</span>
-                      </div>
+                <div style={{ flex: 1 }}>
+                  {room.status === 'OCCUPIED' && room.current_match_id && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: 10, marginBottom: 12, border: '1px solid rgba(239,68,68,0.15)' }}>
+                      <div style={{ fontSize: 10, color: 'var(--neon-red)', fontWeight: 800, textTransform: 'uppercase', marginBottom: 2 }}>Current Match</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>#{room.current_match_id.slice(-8)}</div>
                     </div>
+                  )}
 
-                    {/* Stats Section */}
-                    <div style={{ display: 'flex', justifyContent: 'space-around', padding: '12px 0', borderTop: '1px solid var(--border-secondary)', borderBottom: '1px solid var(--border-secondary)', marginBottom: 16 }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div className="font-display" style={{ fontSize: 18, fontWeight: 700, color: 'var(--neon-green)' }}>{room.total_matches_hosted || 0}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hosted</div>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div className="font-display" style={{ fontSize: 18, fontWeight: 700, color: room.status === 'AVAILABLE' ? 'var(--neon-green)' : 'var(--neon-red)' }}>
-                          {room.status === 'AVAILABLE' ? 'Ready' : 'Busy'}
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
-                      </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Hosted Matches</span>
+                    <span style={{ fontWeight: 700, color: 'var(--neon-cyan)' }}>{room.total_matches_hosted || 0}</span>
+                  </div>
+                  <div style={{ background: 'rgba(99,102,241,0.08)', padding: 10, borderRadius: 8, marginBottom: 0, fontSize: 12 }}>
+                    <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>Invite Link</div>
+                    <div style={{ color: 'var(--accent-primary)', fontWeight: 600, wordBreak: 'break-all', fontSize: 11 }}>
+                      {room.invite_link}
                     </div>
-
-                    {/* Invite Link */}
-                    <div style={{ background: 'rgba(99,102,241,0.08)', padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
-                      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>Invite Link</div>
-                      <a href={room.invite_link} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600, wordBreak: 'break-all' }}>
-                        {room.invite_link}
-                      </a>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {room.status === 'AVAILABLE' && (
-                        <button className="btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => handleTogglePause(room.id, room.status)}>⏸️ Pause</button>
-                      )}
-                      {room.status === 'PAUSED' && (
-                        <button className="btn-success btn-sm" style={{ flex: 1 }} onClick={() => handleTogglePause(room.id, room.status)}>▶️ Unpause</button>
-                      )}
-                      <button className="btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => startEdit(room)}>✏️ Edit</button>
-                      {room.status !== 'OCCUPIED' && (
-                        <button className="btn-danger btn-sm" onClick={() => handleDelete(room.id, room.title)} title="Delete room">🗑️</button>
-                      )}
-                    </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
             );
           })}

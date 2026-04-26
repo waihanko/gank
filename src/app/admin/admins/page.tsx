@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDialog } from '@/lib/dialog-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function AdminsPage() {
+  const router = useRouter();
   const { showAlert, showConfirm } = useDialog();
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,8 +95,19 @@ export default function AdminsPage() {
 
   if (me?.role !== 'SUPER_ADMIN') {
     return (
-      <div style={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>
-        <h2 style={{ color: 'var(--neon-red)' }}>Access Denied: Super Admin Only</h2>
+      <div className="page-container" style={{ display: 'flex', minHeight: '70vh', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="glass-card animate-glow-pulse" style={{ padding: 48, textAlign: 'center', maxWidth: 500, border: '1px solid rgba(239,68,68,0.2)' }}>
+          <div style={{ fontSize: 64, marginBottom: 24 }}>🛑</div>
+          <h2 className="font-display" style={{ fontSize: 28, fontWeight: 900, color: 'white', marginBottom: 16 }}>Security Restriction</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 16, lineHeight: 1.6, marginBottom: 32 }}>
+            Access to the <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>Admin Management Registry</span> is restricted to Super Administrators only.
+          </p>
+          <div style={{ padding: '16px 24px', background: 'rgba(239,68,68,0.1)', borderRadius: 12, border: '1px solid rgba(239,68,68,0.2)', display: 'inline-block' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Insufficient Clearance Level
+            </span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -107,61 +120,104 @@ export default function AdminsPage() {
             🛡️ <span className="gradient-text">Admin Management</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
-            Control platform access and super admin privileges
+            Control platform access and system security roles
           </p>
         </div>
         <button className="btn-primary" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? 'Close Form' : '+ New Admin'}
+          {showCreate ? 'Close Form' : '+ Create New Admin'}
         </button>
       </div>
 
       {showCreate && (
-        <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Create New Admin</h2>
-          {error && <div style={{ color: 'var(--neon-red)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
-          <form onSubmit={handleCreate} style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" required />
+        <div className="glass-card animate-fade-in-up" style={{ padding: 32, marginBottom: 32, border: '1px solid var(--accent-primary)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Initialize New Administrator</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>Set up credentials for a new team member.</p>
+          
+          {error && <div style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--neon-red)', padding: '12px 16px', borderRadius: 12, fontSize: 14, marginBottom: 24, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
+          
+          <form onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 20, alignItems: 'flex-end' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Official Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="name@ghostreferee.com" required />
             </div>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="input-field" required minLength={6} />
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Security Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="input-field" placeholder="••••••••" required minLength={6} />
             </div>
-            <button type="submit" className="btn-primary" style={{ padding: '12px 24px' }}>Create Admin</button>
+            <button type="submit" className="btn-primary" style={{ padding: '14px 32px' }}>Deploy Admin</button>
           </form>
         </div>
       )}
 
       {loading ? (
-        <div>Loading admins...</div>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>🔍 Scanning security registry...</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
           {admins.map(admin => (
-            <div key={admin.id} className="glass-card" style={{ padding: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{admin.email}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>Role: {admin.role}</div>
+            <div key={admin.id} className="glass-card animate-glow-pulse" style={{ padding: 24, position: 'relative', overflow: 'hidden' }}>
+              {/* Card Header */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ 
+                  width: 52, 
+                  height: 52, 
+                  borderRadius: 16, 
+                  background: admin.role === 'SUPER_ADMIN' ? 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' : 'var(--bg-tertiary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                  fontWeight: 900,
+                  color: 'white',
+                  boxShadow: admin.role === 'SUPER_ADMIN' ? '0 8px 20px var(--accent-glow)' : 'none',
+                  border: admin.role === 'SUPER_ADMIN' ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--border-primary)'
+                }}>
+                  {admin.email.charAt(0).toUpperCase()}
                 </div>
-                {admin.role === 'SUPER_ADMIN' ? (
-                  <span style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                    ⭐ SUPER
-                  </span>
-                ) : (
-                  <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                    ✅ NORMAL
-                  </span>
-                )}
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', wordBreak: 'break-all' }}>{admin.email}</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                    <span style={{ 
+                      fontSize: 10, 
+                      fontWeight: 800, 
+                      padding: '2px 8px', 
+                      borderRadius: 6, 
+                      background: admin.role === 'SUPER_ADMIN' ? 'rgba(124,58,237,0.15)' : 'rgba(34,197,94,0.15)',
+                      color: admin.role === 'SUPER_ADMIN' ? 'var(--accent-primary)' : 'var(--neon-green)',
+                      textTransform: 'uppercase'
+                    }}>
+                      {admin.role.replace('_', ' ')}
+                    </span>
+                    {admin.id === me.id && (
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>You</span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {admin.id !== me.id && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-danger btn-sm" style={{ flex: 1 }} onClick={() => handleDelete(admin.id)}>
-                    🗑️ Delete Admin
-                  </button>
+              {/* Stats Strip */}
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Status</div>
+                  {admin.is_suspended ? (
+                    <div style={{ fontSize: 13, color: 'var(--neon-red)', fontWeight: 700 }}>🚫 Suspended</div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: 'var(--neon-green)', fontWeight: 700 }}>✅ Operational</div>
+                  )}
                 </div>
-              )}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Registered</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(admin.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* Action */}
+                <button 
+                  className="btn-secondary" 
+                  style={{ width: '100%', padding: '12px', fontWeight: 700, fontSize: 14 }}
+                  onClick={() => router.push(`/admin/admins/${admin.id}`)}
+                >
+                  🔒 View Access Details
+                </button>
             </div>
           ))}
         </div>
