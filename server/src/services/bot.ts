@@ -367,6 +367,30 @@ async function handlePlayerLeave(chatId: string, tgUserId: number, tgUsername: s
         await tx.wallet.update({ where: { user_id: winnerId }, data: { balance: { increment: winnerPayout }, frozen_amount: { decrement: stakeAmount }, total_won: { increment: winnerPayout } } });
         await tx.wallet.update({ where: { user_id: loserId }, data: { frozen_amount: { decrement: stakeAmount }, total_lost: { increment: stakeAmount } } });
         await tx.platformRevenue.create({ data: { match_id: match.id, amount: Number(match.commission) } });
+
+        // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
+        await tx.transaction.create({
+          data: {
+            wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
+            user_id: winnerId,
+            type: 'PAYOUT',
+            amount: winnerPayout,
+            description: `Match winnings by forfeit (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
+            match_id: match.id,
+          }
+        });
+
+        await tx.transaction.create({
+          data: {
+            wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
+            user_id: winnerId,
+            type: 'COMMISSION',
+            amount: Number(match.commission),
+            description: `Platform fee for forfeit match ${match.id.substring(0, 8)}`,
+            match_id: match.id,
+          }
+        });
+
         await tx.telegramRoom.update({ where: { id: room.id }, data: { status: 'AVAILABLE', current_match_id: null } });
       });
 
@@ -995,6 +1019,30 @@ async function resolveMatchClaims(matchId: string, chatId: string) {
         data: { frozen_amount: { decrement: stakeAmount }, total_lost: { increment: stakeAmount } },
       });
       await tx.platformRevenue.create({ data: { match_id: matchId, amount: Number(match.commission) } });
+
+      // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
+      await tx.transaction.create({
+        data: {
+          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
+          user_id: winnerId,
+          type: 'PAYOUT',
+          amount: winnerPayout,
+          description: `Match winnings (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
+          match_id: matchId,
+        }
+      });
+
+      await tx.transaction.create({
+        data: {
+          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
+          user_id: winnerId,
+          type: 'COMMISSION',
+          amount: Number(match.commission),
+          description: `Platform fee for match ${matchId.substring(0, 8)}`,
+          match_id: matchId,
+        }
+      });
+
       if (room) {
         await tx.telegramRoom.update({ where: { id: room.id }, data: { status: 'AVAILABLE', current_match_id: null } });
       }
