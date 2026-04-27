@@ -422,7 +422,14 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
   const { winner_id, resolution } = req.body;
   const dispute = await prisma.dispute.findUnique({
     where: { id: req.params.id as string },
-    include: { match: true },
+    include: { 
+      match: {
+        include: {
+          challenger: { include: { wallet: true } },
+          opponent: { include: { wallet: true } },
+        }
+      } 
+    },
   });
 
   if (!dispute) {
@@ -472,28 +479,32 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       // Record commission
       await tx.platformRevenue.create({ data: { match_id: match.id, amount: Number(match.commission) } });
 
-      // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
-      await tx.transaction.create({
-        data: {
-          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winner_id } })).id,
-          user_id: winner_id,
-          type: 'PAYOUT',
-          amount: winnerPayout,
-          description: `Admin resolved dispute - Victory payout (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
-          match_id: match.id,
-        }
-      });
+      const winnerWallet = winner_id === match.challenger_id ? (match.challenger as any).wallet : (match.opponent as any).wallet;
 
-      await tx.transaction.create({
-        data: {
-          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winner_id } })).id,
-          user_id: winner_id,
-          type: 'COMMISSION',
-          amount: Number(match.commission),
-          description: `Platform fee for disputed match ${match.id.substring(0, 8)}`,
-          match_id: match.id,
-        }
-      });
+      // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
+      if (winnerWallet) {
+        await tx.transaction.create({
+          data: {
+            wallet_id: winnerWallet.id,
+            user_id: winner_id,
+            type: 'PAYOUT',
+            amount: winnerPayout,
+            description: `Admin resolved dispute - Victory payout (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
+            match_id: match.id,
+          }
+        });
+
+        await tx.transaction.create({
+          data: {
+            wallet_id: winnerWallet.id,
+            user_id: winner_id,
+            type: 'COMMISSION',
+            amount: Number(match.commission),
+            description: `Platform fee for disputed match ${match.id.substring(0, 8)}`,
+            match_id: match.id,
+          }
+        });
+      }
 
       // Notifications
       await tx.notification.create({ data: { user_id: winner_id, title: 'Dispute Resolved — You Won! 🏆', message: `An admin resolved the dispute in your favor. ${winnerPayout.toLocaleString()} MMK added to wallet.` } });

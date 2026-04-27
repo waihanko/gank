@@ -307,8 +307,8 @@ async function handlePlayerLeave(chatId: string, tgUserId: number, tgUsername: s
   const match = await prisma.match.findUnique({
     where: { id: room.current_match_id },
     include: {
-      challenger: { select: { id: true, telegram_username: true, username: true } },
-      opponent: { select: { id: true, telegram_username: true, username: true } },
+      challenger: { include: { wallet: true } },
+      opponent: { include: { wallet: true } },
     },
   });
   if (!match) return;
@@ -368,28 +368,32 @@ async function handlePlayerLeave(chatId: string, tgUserId: number, tgUsername: s
         await tx.wallet.update({ where: { user_id: loserId }, data: { frozen_amount: { decrement: stakeAmount }, total_lost: { increment: stakeAmount } } });
         await tx.platformRevenue.create({ data: { match_id: match.id, amount: Number(match.commission) } });
 
-        // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
-        await tx.transaction.create({
-          data: {
-            wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
-            user_id: winnerId,
-            type: 'PAYOUT',
-            amount: winnerPayout,
-            description: `Match winnings by forfeit (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
-            match_id: match.id,
-          }
-        });
+        const winnerWallet = isChallengerLeaving ? match.opponent?.wallet : match.challenger?.wallet;
 
-        await tx.transaction.create({
-          data: {
-            wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
-            user_id: winnerId,
-            type: 'COMMISSION',
-            amount: Number(match.commission),
-            description: `Platform fee for forfeit match ${match.id.substring(0, 8)}`,
-            match_id: match.id,
-          }
-        });
+        // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
+        if (winnerWallet) {
+          await tx.transaction.create({
+            data: {
+              wallet_id: winnerWallet.id,
+              user_id: winnerId,
+              type: 'PAYOUT',
+              amount: winnerPayout,
+              description: `Match winnings by forfeit (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
+              match_id: match.id,
+            }
+          });
+
+          await tx.transaction.create({
+            data: {
+              wallet_id: winnerWallet.id,
+              user_id: winnerId,
+              type: 'COMMISSION',
+              amount: Number(match.commission),
+              description: `Platform fee for forfeit match ${match.id.substring(0, 8)}`,
+              match_id: match.id,
+            }
+          });
+        }
 
         await tx.telegramRoom.update({ where: { id: room.id }, data: { status: 'AVAILABLE', current_match_id: null } });
       });
@@ -976,8 +980,8 @@ async function resolveMatchClaims(matchId: string, chatId: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      challenger: { select: { id: true, telegram_username: true, username: true } },
-      opponent: { select: { id: true, telegram_username: true, username: true } },
+      challenger: { include: { wallet: true } },
+      opponent: { include: { wallet: true } },
     },
   });
   if (!match || !match.challenger_claim || !match.opponent_claim) return;
@@ -1020,28 +1024,32 @@ async function resolveMatchClaims(matchId: string, chatId: string) {
       });
       await tx.platformRevenue.create({ data: { match_id: matchId, amount: Number(match.commission) } });
 
-      // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
-      await tx.transaction.create({
-        data: {
-          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
-          user_id: winnerId,
-          type: 'PAYOUT',
-          amount: winnerPayout,
-          description: `Match winnings (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
-          match_id: matchId,
-        }
-      });
+      const winnerWallet = winnerId === match.challenger_id ? match.challenger?.wallet : match.opponent?.wallet;
 
-      await tx.transaction.create({
-        data: {
-          wallet_id: (await tx.wallet.findUnique({ where: { user_id: winnerId } })).id,
-          user_id: winnerId,
-          type: 'COMMISSION',
-          amount: Number(match.commission),
-          description: `Platform fee for match ${matchId.substring(0, 8)}`,
-          match_id: matchId,
-        }
-      });
+      // RECORD TRANSACTIONS FOR ADMIN DASHBOARD
+      if (winnerWallet) {
+        await tx.transaction.create({
+          data: {
+            wallet_id: winnerWallet.id,
+            user_id: winnerId,
+            type: 'PAYOUT',
+            amount: winnerPayout,
+            description: `Match winnings (Commission: ${Number(match.commission).toLocaleString()} MMK)`,
+            match_id: matchId,
+          }
+        });
+
+        await tx.transaction.create({
+          data: {
+            wallet_id: winnerWallet.id,
+            user_id: winnerId,
+            type: 'COMMISSION',
+            amount: Number(match.commission),
+            description: `Platform fee for match ${matchId.substring(0, 8)}`,
+            match_id: matchId,
+          }
+        });
+      }
 
       if (room) {
         await tx.telegramRoom.update({ where: { id: room.id }, data: { status: 'AVAILABLE', current_match_id: null } });
