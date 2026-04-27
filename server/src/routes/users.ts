@@ -74,6 +74,7 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
       }
       
       updates.telegram_username = telegram_username.startsWith('@') ? telegram_username : `@${telegram_username}`;
+      updates.telegram_id = null; // Clear ID so it can be re-linked
       if (telegram_display_name !== undefined) updates.telegram_display_name = telegram_display_name;
       if (telegram_bio !== undefined) updates.telegram_bio = telegram_bio;
       if (telegram_profile_image !== undefined) updates.avatar_url = telegram_profile_image;

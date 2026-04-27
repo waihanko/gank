@@ -424,11 +424,16 @@ export function createBot(): Bot {
           }
         });
 
-        if (user && !user.telegram_id) {
-          // Clear ID from others and link to this user
-          await prisma.user.updateMany({ where: { telegram_id: tgUserId }, data: { telegram_id: null } });
-          await prisma.user.update({ where: { id: user.id }, data: { telegram_id: tgUserId } });
-          console.log(`[BOT] 🆔 Linked ID ${tgUserId} to @${username}`);
+        if (user) {
+          // If the ID is different from what we have, update it
+          if (user.telegram_id !== tgUserId) {
+            // Clear this ID from any other user first to maintain uniqueness
+            await prisma.user.updateMany({ where: { telegram_id: tgUserId }, data: { telegram_id: null } });
+            
+            // Update the target user with the new ID
+            await prisma.user.update({ where: { id: user.id }, data: { telegram_id: tgUserId } });
+            console.log(`[BOT] 🆔 Re-linked/Updated ID ${tgUserId} for @${username}`);
+          }
         }
       } catch (err) {
         console.warn('[BOT] Global Linker Error:', err);
