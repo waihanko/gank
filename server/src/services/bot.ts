@@ -805,7 +805,7 @@ export function createBot(): Bot {
     const isChallengerJoining = challengerTg !== '' && joinedUsername === challengerTg;
 
     if (isChallengerJoining) {
-      // Validate balance
+      // PHASE A: Challenger Approval
       const stakeAmount = Number(match.stake_amount);
       const user = await prisma.user.findUnique({
         where: { id: match.challenger_id },
@@ -821,14 +821,9 @@ export function createBot(): Bot {
 
       console.log(`[BOT] ✅ Challenger @${tgUsername} approved for match ${match.id}`);
       
-      // Save ID immediately upon approval (Non-blocking)
+      // Save ID immediately upon approval
       try {
-        // Clear this ID from any other user first to prevent unique constraint errors
-        await prisma.user.updateMany({
-          where: { telegram_id: tgUserId.toString() },
-          data: { telegram_id: null }
-        });
-
+        await prisma.user.updateMany({ where: { telegram_id: tgUserId.toString() }, data: { telegram_id: null } });
         await prisma.user.updateMany({
           where: { 
             OR: [
@@ -838,23 +833,18 @@ export function createBot(): Bot {
           },
           data: { telegram_id: tgUserId.toString() }
         });
-      } catch (err) {
-        console.warn('[BOT] Non-fatal error linking ID during approval:', err);
-      }
+      } catch (err) {}
 
       await ctx.approveChatJoinRequest(tgUserId);
 
-      // Freeze balance & generate direct invite link atomically
+      // Generate direct invite link for opponent and freeze balance
       const linkName = `Opponent #${match.id.substring(0, 6)}`;
       const directInviteLink = await generateInviteLink(chatId, linkName, room.invite_link, false);
 
       await prisma.$transaction(async (tx: any) => {
         await tx.wallet.update({
           where: { user_id: user.id },
-          data: {
-            balance: { decrement: stakeAmount },
-            frozen_amount: { increment: stakeAmount },
-          },
+          data: { balance: { decrement: stakeAmount }, frozen_amount: { increment: stakeAmount } },
         });
 
         await tx.transaction.create({
@@ -879,10 +869,49 @@ export function createBot(): Bot {
       });
 
       emitMatchUpdate(match.id, { status: 'ACTIVE', matchId: match.id });
-    } else {
-      console.log(`[BOT] 🚫 Decline Join: Username @${joinedUsername} does not match challenger @${challengerTg}`);
+    } 
+    else if (match.status === 'ACTIVE' && !match.opponent_id) {
+      // PHASE B: Potential Opponent Approval
+      // If the match is ACTIVE and looking for an opponent, we check if this requester
+      // is a registered user with enough money. If so, we approve the join request.
+      // The actual assignment happens in handlePlayerJoin once they are physically in the room.
+      
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { telegram_username: { equals: joinedUsername, mode: 'insensitive' } },
+            { telegram_username: { equals: `@${joinedUsername}`, mode: 'insensitive' } }
+          ]
+        },
+        include: { wallet: true }
+      });
+
+      const stakeAmount = Number(match.stake_amount);
+
+      if (user && user.wallet && Number(user.wallet.balance) >= stakeAmount) {
+        console.log(`[BOT] ✅ Potential Opponent @${tgUsername} approved for match ${match.id}`);
+        
+        // Link ID (Non-blocking)
+        try {
+          await prisma.user.updateMany({ where: { telegram_id: tgUserId.toString() }, data: { telegram_id: null } });
+          await prisma.user.update({ where: { id: user.id }, data: { telegram_id: tgUserId.toString() } });
+        } catch {}
+
+        await ctx.approveChatJoinRequest(tgUserId);
+      } else {
+        console.log(`[BOT] 🚫 Decline Join: User @${joinedUsername} not registered or low balance.`);
+        await ctx.declineChatJoinRequest(tgUserId);
+        if (!user) {
+          await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> You must register on the website and link your Telegram account before joining matches.`);
+        } else {
+          await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> Insufficient balance. You need ${stakeAmount} MMK to join this match.`);
+        }
+      }
+    }
+    else {
+      console.log(`[BOT] 🚫 Decline Join: Room is reserved or requester @${joinedUsername} is unauthorized.`);
       await ctx.declineChatJoinRequest(tgUserId);
-      await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> You are not the authorized challenger for this match. This room is reserved for other player.`);
+      await sendDirectMessage(tgUserId.toString(), `❌ <b>Join Declined:</b> This match room is currently reserved for specific players or the join phase has ended.`);
     }
   });
 
