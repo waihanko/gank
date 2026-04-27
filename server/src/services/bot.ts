@@ -793,7 +793,7 @@ export function createBot(): Bot {
       },
     });
 
-    if (!match || match.status !== 'PENDING_JOIN') {
+    if (!match || (match.status !== 'PENDING_JOIN' && match.status !== 'ACTIVE')) {
       console.log(`[BOT] 🚫 Decline Join: Match not found or not PENDING_JOIN. Status: ${match?.status}`);
       await ctx.declineChatJoinRequest(tgUserId);
       await sendDirectMessage(tgUserId.toString(), "❌ <b>Join Declined:</b> The match in this room is no longer in the joining phase.");
