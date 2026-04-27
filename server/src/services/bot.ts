@@ -726,12 +726,23 @@ export function createBot(): Bot {
       }
     }
 
-    // Race condition protection: Retry once after 1.5s if no match found
-    let room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
-    if (!room || !room.current_match_id) {
-      console.log(`[BOT] ⏳ Match not found yet, retrying in 1.5s...`);
+    // PHASE 1: Find Room (with polling retry for production stability)
+    let room = null;
+    for (let i = 0; i < 5; i++) {
+      room = await prisma.telegramRoom.findFirst({ 
+        where: { 
+          OR: [
+            { chat_id: chatId },
+            { chat_id: chatId.startsWith('-100') ? chatId.replace('-100', '-') : chatId }, // Handle variations
+            { chat_id: chatId.startsWith('-') && !chatId.startsWith('-100') ? chatId.replace('-', '-100') : chatId }
+          ]
+        } 
+      });
+
+      if (room && room.current_match_id) break;
+      
+      console.log(`[BOT] ⏳ Attempt ${i + 1}/5: Match not found yet for chat ${chatId}, waiting...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
-      room = await prisma.telegramRoom.findFirst({ where: { chat_id: chatId } });
     }
 
     if (!room) {

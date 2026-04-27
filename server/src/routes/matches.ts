@@ -234,7 +234,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         where: { id: availableRoom.id },
         data: { 
           status: 'OCCUPIED',
-          total_matches_hosted: { increment: 1 }
+          total_matches_hosted: { increment: 1 },
+          current_match_id: matchId // LINK ATOMICALLY
         },
       });
 
@@ -252,11 +253,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       });
     });
 
-    // Set the current match on the room
-    await prisma.telegramRoom.update({
-      where: { id: availableRoom.id },
-      data: { current_match_id: match.id },
-    });
+
 
     // Schedule auto-cancel if challenger doesn't join within 5 minutes
     try {
