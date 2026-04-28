@@ -66,7 +66,7 @@ export default function AdminDisputesPage() {
 
   useEffect(() => { fetchDisputes(); }, []);
 
-  async function handleResolve(disputeId: string, winnerId: string | null, resolution: string) {
+  async function handleResolve(disputeId: string, winnerId: string | null, resolution: string, action?: string) {
     setResolving(disputeId);
     setSuccessMsg('');
     try {
@@ -74,7 +74,7 @@ export default function AdminDisputesPage() {
       const res = await fetch(`${API_URL}/api/admin/disputes/${disputeId}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ winner_id: winnerId, resolution }),
+        body: JSON.stringify({ winner_id: winnerId, resolution, action }),
       });
       const data = await res.json();
       if (data.success) {
@@ -292,7 +292,25 @@ export default function AdminDisputesPage() {
                             disabled={resolving === dispute.id}
                             onClick={() => handleResolve(dispute.id, null, 'Voided and refunded both players')}
                           >
-                            ↩️ Void & Refund Both
+                            ↩️ Void &amp; Refund Both
+                          </button>
+                          <button
+                            disabled={resolving === dispute.id}
+                            onClick={() => handleResolve(dispute.id, null, 'Voided — stakes collected by platform', 'void_collect')}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(239,68,68,0.2))',
+                              border: '1px solid rgba(234,179,8,0.4)',
+                              color: '#f59e0b',
+                              padding: '10px 20px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: resolving === dispute.id ? 'not-allowed' : 'pointer',
+                              opacity: resolving === dispute.id ? 0.5 : 1,
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            {resolving === dispute.id ? '...' : '💰 Void & Collect'}
                           </button>
                         </div>
                       </div>

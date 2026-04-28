@@ -46,8 +46,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       } : {}),
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
@@ -85,7 +85,7 @@ router.get('/leaderboard', async (req: Request, res: Response): Promise<void> =>
   try {
     const topPlayers = await prisma.user.findMany({
       where: { is_banned: false },
-      select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true },
+      select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, avatar_url: true },
       orderBy: { wins: 'desc' },
       take: 10,
     });
@@ -121,8 +121,8 @@ router.get('/my-recent', authMiddleware, async (req: Request, res: Response): Pr
     orderBy: { created_at: 'desc' },
     take: 2,
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
   });
@@ -140,8 +140,8 @@ router.get('/my-history', authMiddleware, async (req: Request, res: Response): P
       ]
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
@@ -438,8 +438,34 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
     return;
   }
 
-  // Provide the direct link for Player B generated during Phase 2
-  const opponentInviteLink = match.opponent_invite_link || (match.room ? match.room.invite_link : null);
+  // Re-fetch match to get the latest opponent_invite_link (set by bot after challenger joins)
+  const freshMatch = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: { room: true },
+  });
+
+  let opponentInviteLink = freshMatch?.opponent_invite_link || null;
+
+  // If opponent_invite_link is still null (race condition: challenger join handler hasn't completed yet),
+  // generate a fresh dynamic invite link instead of falling back to the static room link
+  // (static links don't work when the group requires join requests)
+  if (!opponentInviteLink && freshMatch?.room) {
+    try {
+      const { generateInviteLink } = require('../services/bot');
+      const linkName = `Opponent #${matchId.substring(0, 6)}`;
+      opponentInviteLink = await generateInviteLink(freshMatch.room.chat_id, linkName, null, true);
+      
+      // Save it to the match for future use
+      if (opponentInviteLink) {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { opponent_invite_link: opponentInviteLink },
+        });
+      }
+    } catch (err) {
+      console.error('[MATCHES] Failed to generate opponent invite link:', err);
+    }
+  }
 
   // DO NOT freeze funds or assign opponent_id here. 
   // The bot will do this when the user physically joins the group.
@@ -447,9 +473,9 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
   res.json({
     success: true,
     data: {
-      match,
+      match: freshMatch || match,
       telegram_invite: opponentInviteLink,
-      room_title: match.room?.title || 'Battle Room',
+      room_title: freshMatch?.room?.title || match.room?.title || 'Battle Room',
     },
     message: 'Link generated. Join the Telegram battle room to claim the match!',
   });
@@ -460,8 +486,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   const match = await prisma.match.findUnique({
     where: { id: req.params.id as string },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: true,
     },
   });

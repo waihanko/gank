@@ -11,6 +11,9 @@ const prisma = new PrismaClient();
 // Key: matchId, Value: { challengerTgId, opponentTgId }
 const roomMemberIds = new Map<string, { challengerTgId?: number; opponentTgId?: number }>();
 
+// Prevent concurrent resolution of the same match (duplicate disputes/payouts)
+const resolvingMatches = new Set<string>();
+
 // Deduplication: prevent processing the same join/leave event twice
 // (both message:new_chat_members and chat_member can fire for the same event)
 const recentlyProcessed = new Set<string>();
@@ -307,8 +310,8 @@ async function handlePlayerLeave(chatId: string, tgUserId: number, tgUsername: s
   const match = await prisma.match.findUnique({
     where: { id: room.current_match_id },
     include: {
-      challenger: { include: { wallet: true } },
-      opponent: { include: { wallet: true } },
+      challenger: { include: { wallet: true }, },
+      opponent: { include: { wallet: true }, },
     },
   });
   if (!match) return;
@@ -405,19 +408,48 @@ async function handlePlayerLeave(chatId: string, tgUserId: number, tgUsername: s
 
       await revokeInviteLinks(chatId, [match.challenger_invite_link, match.opponent_invite_link]);
 
-      // Clean up room: kick winner, purge messages
+      // Clean up room: kick ALL players, purge messages
       try {
         await new Promise(r => setTimeout(r, 2000));
         const tracked = roomMemberIds.get(match.id);
+        const kickedIds = new Set<number>();
+
+        // 1. Kick from in-memory tracked IDs
         if (tracked) {
-          const winnerTgId = isChallengerLeaving ? tracked.opponentTgId : tracked.challengerTgId;
-          if (winnerTgId) {
-            console.log(`[BOT] Kicking winner (tgId: ${winnerTgId}) from room`);
-            await bot!.api.banChatMember(numericChatId, winnerTgId, { revoke_messages: true });
-            await bot!.api.unbanChatMember(numericChatId, winnerTgId, { only_if_banned: true });
+          if (tracked.challengerTgId) {
+            console.log(`[BOT] Kicking challenger (tgId: ${tracked.challengerTgId}) from room`);
+            await bot!.api.banChatMember(numericChatId, tracked.challengerTgId, { revoke_messages: true });
+            await bot!.api.unbanChatMember(numericChatId, tracked.challengerTgId, { only_if_banned: true });
+            kickedIds.add(tracked.challengerTgId);
+          }
+          if (tracked.opponentTgId) {
+            console.log(`[BOT] Kicking opponent (tgId: ${tracked.opponentTgId}) from room`);
+            await bot!.api.banChatMember(numericChatId, tracked.opponentTgId, { revoke_messages: true });
+            await bot!.api.unbanChatMember(numericChatId, tracked.opponentTgId, { only_if_banned: true });
+            kickedIds.add(tracked.opponentTgId);
           }
           roomMemberIds.delete(match.id);
         }
+
+        // 2. Fallback: use database telegram_id for anyone we missed
+        const challengerTgDbId = match.challenger?.telegram_id ? Number(match.challenger.telegram_id) : null;
+        const opponentTgDbId = match.opponent?.telegram_id ? Number(match.opponent.telegram_id) : null;
+
+        if (challengerTgDbId && !kickedIds.has(challengerTgDbId)) {
+          console.log(`[BOT] Kicking challenger via DB telegram_id (${challengerTgDbId}) from room`);
+          try {
+            await bot!.api.banChatMember(numericChatId, challengerTgDbId, { revoke_messages: true });
+            await bot!.api.unbanChatMember(numericChatId, challengerTgDbId, { only_if_banned: true });
+          } catch (e) { console.warn(`[BOT] Could not kick challenger ${challengerTgDbId}:`, e); }
+        }
+        if (opponentTgDbId && !kickedIds.has(opponentTgDbId)) {
+          console.log(`[BOT] Kicking opponent via DB telegram_id (${opponentTgDbId}) from room`);
+          try {
+            await bot!.api.banChatMember(numericChatId, opponentTgDbId, { revoke_messages: true });
+            await bot!.api.unbanChatMember(numericChatId, opponentTgDbId, { only_if_banned: true });
+          } catch (e) { console.warn(`[BOT] Could not kick opponent ${opponentTgDbId}:`, e); }
+        }
+
         await purgeRecentMessages(numericChatId);
       } catch (cleanupErr) {
         console.error(`[BOT] ❌ Failed to clean up room after forfeit:`, cleanupErr);
@@ -611,12 +643,23 @@ export function createBot(): Bot {
     });
     if (!match) { await ctx.answerCallbackQuery({ text: '❌ Match not found' }); return; }
 
+    // Guard: only allow claims during active battle
+    if (!['BATTLE', 'SUBMISSION'].includes(match.status)) {
+      await ctx.answerCallbackQuery({ text: '⏳ This match has already been resolved.' });
+      return;
+    }
+
     const challengerTg = (match.challenger?.telegram_username || '').replace(/^@/, '').toLowerCase();
     const opponentTg = (match.opponent?.telegram_username || '').replace(/^@/, '').toLowerCase();
     const isChallenger = challengerTg !== '' && username.toLowerCase() === challengerTg;
     const isOpponent = opponentTg !== '' && username.toLowerCase() === opponentTg;
 
     if (!isChallenger && !isOpponent) { await ctx.answerCallbackQuery({ text: '❓ Not a participant' }); return; }
+
+    // Guard: block same claim twice, but ALLOW switching (WON→LOST or LOST→WON)
+    if (isChallenger && match.challenger_claim === 'WON') { await ctx.answerCallbackQuery({ text: '⚠️ You already claimed WON. Tap 💀 I LOST to change.' }); return; }
+    if (isOpponent && match.opponent_claim === 'WON') { await ctx.answerCallbackQuery({ text: '⚠️ You already claimed WON. Tap 💀 I LOST to change.' }); return; }
+
 
     // Record the claim
     const claimData: any = {};
@@ -654,12 +697,23 @@ export function createBot(): Bot {
     });
     if (!match) { await ctx.answerCallbackQuery({ text: '❌ Match not found' }); return; }
 
+    // Guard: only allow claims during active battle
+    if (!['BATTLE', 'SUBMISSION'].includes(match.status)) {
+      await ctx.answerCallbackQuery({ text: '⏳ This match has already been resolved.' });
+      return;
+    }
+
     const challengerTg = (match.challenger?.telegram_username || '').replace(/^@/, '').toLowerCase();
     const opponentTg = (match.opponent?.telegram_username || '').replace(/^@/, '').toLowerCase();
     const isChallenger = challengerTg !== '' && username.toLowerCase() === challengerTg;
     const isOpponent = opponentTg !== '' && username.toLowerCase() === opponentTg;
 
     if (!isChallenger && !isOpponent) { await ctx.answerCallbackQuery({ text: '❓ Not a participant' }); return; }
+
+    // Guard: block same claim twice, but ALLOW switching (WON→LOST or LOST→WON)
+    if (isChallenger && match.challenger_claim === 'LOST') { await ctx.answerCallbackQuery({ text: '⚠️ You already claimed LOST. Tap 🏆 I WON to change.' }); return; }
+    if (isOpponent && match.opponent_claim === 'LOST') { await ctx.answerCallbackQuery({ text: '⚠️ You already claimed LOST. Tap 🏆 I WON to change.' }); return; }
+
 
     const claimData: any = {};
     if (isChallenger) claimData.challenger_claim = 'LOST';
@@ -839,7 +893,7 @@ export function createBot(): Bot {
 
       // Generate direct invite link for opponent and freeze balance
       const linkName = `Opponent #${match.id.substring(0, 6)}`;
-      const directInviteLink = await generateInviteLink(chatId, linkName, room.invite_link, false);
+      const directInviteLink = await generateInviteLink(chatId, linkName, room.invite_link, true);
 
       await prisma.$transaction(async (tx: any) => {
         await tx.wallet.update({
@@ -1005,6 +1059,14 @@ export async function generateInviteLink(chatId: string, linkName: string, fallb
 // Match Claim Resolution Logic
 // =============================================
 async function resolveMatchClaims(matchId: string, chatId: string) {
+  // Atomic lock: prevent concurrent resolution of the same match
+  if (resolvingMatches.has(matchId)) {
+    console.log(`[BOT] ⏭️ resolveMatchClaims already in progress for ${matchId}, skipping`);
+    return;
+  }
+  resolvingMatches.add(matchId);
+
+  try {
   const numChatId = Number(chatId);
   const match = await prisma.match.findUnique({
     where: { id: matchId },
@@ -1014,6 +1076,12 @@ async function resolveMatchClaims(matchId: string, chatId: string) {
     },
   });
   if (!match || !match.challenger_claim || !match.opponent_claim) return;
+
+  // Guard: don't resolve if already completed/disputed
+  if (['COMPLETED', 'DISPUTED', 'VOIDED', 'CANCELLED'].includes(match.status)) {
+    console.log(`[BOT] ⏭️ Match ${matchId} already resolved (status: ${match.status}), skipping`);
+    return;
+  }
 
   // Case 1: One says WON, other says LOST → auto-resolve
   if (
@@ -1174,6 +1242,10 @@ async function resolveMatchClaims(matchId: string, chatId: string) {
     });
     try { await bot!.api.sendMessage(numChatId, `❓ Both players claim defeat. This match has been flagged for <b>admin review</b>.`, { parse_mode: 'HTML' }); } catch {}
   }
+
+  } finally {
+    resolvingMatches.delete(matchId);
+  }
 }
 
 // Helper: Send ready check to a room
@@ -1246,37 +1318,43 @@ export async function kickAndWipeRoom(chatId: string, matchId: string) {
 
   // Try to kick tracked players first
   const tracked = roomMemberIds.get(matchId);
+  const kickedIds = new Set<number>();
+
   if (tracked) {
     for (const tgId of [tracked.challengerTgId, tracked.opponentTgId]) {
       if (!tgId) continue;
       try {
         await bot.api.banChatMember(numericChatId, tgId, { revoke_messages: true });
         await bot.api.unbanChatMember(numericChatId, tgId, { only_if_banned: true });
+        kickedIds.add(tgId);
         console.log(`[BOT] Kicked tracked user ${tgId} from room ${chatId}`);
       } catch {}
     }
     roomMemberIds.delete(matchId);
   }
 
-  // Also try to get chat members from the match record and kick by username lookup
+  // Fallback: kick by DB telegram_id for anyone missed
   try {
     const match = await prisma.match.findUnique({
       where: { id: matchId },
       include: {
-        challenger: { select: { telegram_username: true } },
-        opponent: { select: { telegram_username: true } },
+        challenger: { select: { telegram_id: true } },
+        opponent: { select: { telegram_id: true } },
       },
     });
     if (match) {
-      // Try to get and kick any remaining non-admin, non-bot members
-      // by checking recent chat members via getChat
-      const admins = await bot.api.getChatAdministrators(numericChatId);
-      const botId = (await bot.api.getMe()).id;
-      for (const admin of admins) {
-        if (admin.user.is_bot) continue;
-        if (admin.user.id === botId) continue;
-        // Don't kick actual group admins/creators
-        if (admin.status === 'creator') continue;
+      const dbIds = [
+        match.challenger?.telegram_id ? Number(match.challenger.telegram_id) : null,
+        match.opponent?.telegram_id ? Number(match.opponent.telegram_id) : null,
+      ];
+      for (const tgId of dbIds) {
+        if (!tgId || kickedIds.has(tgId)) continue;
+        try {
+          await bot.api.banChatMember(numericChatId, tgId, { revoke_messages: true });
+          await bot.api.unbanChatMember(numericChatId, tgId, { only_if_banned: true });
+          kickedIds.add(tgId);
+          console.log(`[BOT] Kicked DB user ${tgId} from room ${chatId}`);
+        } catch (e) { console.warn(`[BOT] Could not kick ${tgId}:`, e); }
       }
     }
   } catch {}

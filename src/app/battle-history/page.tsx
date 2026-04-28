@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -22,13 +23,14 @@ interface MatchRecord {
 }
 
 export default function BattleHistoryPage() {
+  const router = useRouter();
   const { user, token, isLoggedIn, loading } = useAuth();
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'dispute' | 'won' | 'lost' | 'cancel'>('all');
 
   useEffect(() => {
-    if (!loading && !isLoggedIn) { window.location.href = '/login'; return; }
+    if (!loading && !isLoggedIn) { router.push('/login'); return; }
     if (!token || !user) return;
 
     fetch(`${API_URL}/api/matches/my-history`, { headers: { Authorization: `Bearer ${token}` } })
@@ -40,13 +42,15 @@ export default function BattleHistoryPage() {
         setLoadingData(false);
       })
       .catch(() => setLoadingData(false));
-  }, [token, isLoggedIn, loading, user]);
+  }, [token, isLoggedIn, loading, user, router]);
 
-  if (loading || !user) return (
+  if (loading && !user) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="font-display gradient-text" style={{ fontSize: 20 }}>Loading...</div>
     </div>
   );
+
+  if (!user && !loading) return null;
 
   // Stats
   const totalMatches = matches.length;
@@ -159,16 +163,33 @@ export default function BattleHistoryPage() {
               const isActive = activeStatuses.includes(m.status);
 
               return (
-                <div key={m.id} className="glass-card" style={{
-                  padding: '18px 22px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderColor: won ? 'rgba(34,197,94,0.2)' : lost ? 'rgba(239,68,68,0.15)' : isActive ? 'rgba(124,58,237,0.2)' : isDispute ? 'rgba(234,179,8,0.3)' : undefined,
-                  opacity: isCancel ? 0.6 : 1,
-                  flexWrap: 'wrap',
-                  gap: 12,
-                }}>
+                <div 
+                  key={m.id} 
+                  className="glass-card" 
+                  onClick={() => router.push(`/battle-history/${m.id}`)}
+                  style={{
+                    padding: '18px 22px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderColor: won ? 'rgba(34,197,94,0.2)' : lost ? 'rgba(239,68,68,0.15)' : isActive ? 'rgba(124,58,237,0.2)' : isDispute ? 'rgba(234,179,8,0.3)' : undefined,
+                    opacity: isCancel ? 0.6 : 1,
+                    flexWrap: 'wrap',
+                    gap: 12,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = won ? 'rgba(34,197,94,0.2)' : lost ? 'rgba(239,68,68,0.15)' : isActive ? 'rgba(124,58,237,0.2)' : isDispute ? 'rgba(234,179,8,0.3)' : 'var(--glass-border)';
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     {/* Icon */}
                     <div style={{
@@ -182,7 +203,7 @@ export default function BattleHistoryPage() {
                     {/* Info */}
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>
-                        vs {opponent?.mlbb_ign || opponent?.username || 'Waiting...'}
+                        vs {opponent?.username || 'Waiting...'}
                       </div>
                       <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
                         <span>#{m.id.slice(0, 5)}...{m.id.slice(-3)}</span>

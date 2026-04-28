@@ -2,7 +2,7 @@
 set timeout 300
 set password "QAZqaz123$%^&a"
 
-spawn ssh -o StrictHostKeyChecking=no root@206.189.90.68 "cd /var/www/gank && git pull && cd server && npm install && npm run build && pm2 restart gank-backend"
+spawn ssh -o StrictHostKeyChecking=no root@206.189.90.68 "cd /var/www/gank && git stash && git pull && git stash pop || true && cd server && npm install && npm run build && pm2 restart gank-backend"
 expect "password:"
 send "$password\r"
 expect eof

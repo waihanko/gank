@@ -12,6 +12,25 @@ import { useDialog } from '@/lib/dialog-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
+function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: number, borderRadius?: number }) {
+  const [error, setError] = useState(false);
+  if (!user) return <span>?</span>;
+
+  if (user.avatar_url && !error) {
+    return (
+      <img
+        src={user.avatar_url}
+        alt={user.username}
+        onError={() => setError(true)}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius }}
+      />
+    );
+  }
+
+  const initial = (user.telegram_display_name || user.telegram_username || user.username || 'U').replace('@', '').trim().charAt(0).toUpperCase();
+  return <span>{initial}</span>;
+}
+
 export default function MatchesPage() {
   const [stakeInput, setStakeInput] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -238,7 +257,7 @@ export default function MatchesPage() {
               Browse open challenges or create your own
             </p>
           </div>
-          <button className="btn-primary" onClick={() => handleAuthAction(() => setShowCreateModal(true))}>
+          <button className="btn-battle btn-battle-pulse" onClick={() => handleAuthAction(() => setShowCreateModal(true))}>
             🎯 Create Challenge
           </button>
         </div>
@@ -286,7 +305,7 @@ export default function MatchesPage() {
                       margin: '0 auto 8px',
                     }}
                   >
-                    {match.challenger?.username?.charAt(0) || '?'}
+                    <MatchAvatar user={match.challenger} size={48} />
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.username || 'Unknown'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -332,7 +351,7 @@ export default function MatchesPage() {
                           margin: '0 auto 8px',
                         }}
                       >
-                        {match.opponent.username.charAt(0)}
+                        <MatchAvatar user={match.opponent} size={48} />
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent.username}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -377,17 +396,17 @@ export default function MatchesPage() {
                 }}
               >
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  {match.status === 'ACTIVE' || match.status === 'PENDING_JOIN' ? 'Stake' : 'Total Pot'}
+                  Stake Amount
                 </div>
                 <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: 'var(--neon-yellow)' }}>
-                  {formatCurrency(match.status === 'ACTIVE' || match.status === 'PENDING_JOIN' ? match.stake_amount : match.total_pot || (match.stake_amount * 2))}
+                  {formatCurrency(match.stake_amount)}
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons / Results */}
               <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
                 {match.status === 'PENDING_JOIN' && match.challenger_invite_link && (
-                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => setTelegramDialog({
+                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => setTelegramDialog({
                     show: true, type: 'challenger', inviteLink: match.challenger_invite_link!, roomTitle: match.room?.title || 'Battle Room'
                   })}>
                     📱 Join Battle Room
@@ -404,7 +423,7 @@ export default function MatchesPage() {
                   </button>
                 )}
                 {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(match.status) && (
-                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => setTelegramDialog({
+                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => setTelegramDialog({
                     show: true, type: match.challenger_id === user?.id ? 'challenger' : 'opponent',
                     inviteLink: match.challenger_id === user?.id ? match.challenger_invite_link : match.opponent_invite_link,
                     roomTitle: match.room?.title || 'Battle Room'
@@ -412,6 +431,29 @@ export default function MatchesPage() {
                     📱 Open Telegram
                   </button>
                 )}
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  {/* Duration on Left */}
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {match.started_at && match.completed_at ? (
+                      `⏱️ ${Math.floor((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) / 60000)}m ${Math.floor(((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) % 60000) / 1000)}s`
+                    ) : match.status === 'BATTLE' ? (
+                      '⚔️ Battling...'
+                    ) : null}
+                  </div>
+
+                  {/* Winner on Right */}
+                  {match.status === 'COMPLETED' && match.winner_id && (
+                    <span style={{ fontSize: 13, color: 'var(--neon-green)', fontWeight: 600 }}>
+                      🏆 {match.winner_id === match.challenger_id ? match.challenger?.username : match.opponent?.username} Won
+                    </span>
+                  )}
+                  {match.status === 'DISPUTED' && (
+                    <span style={{ fontSize: 13, color: 'var(--neon-red)', fontWeight: 600 }}>
+                      ⚠️ Under Review
+                    </span>
+                  )}
+                </div>
               </div>
 
                 </div>
@@ -452,7 +494,7 @@ export default function MatchesPage() {
                       margin: '0 auto 8px',
                     }}
                   >
-                    {match.challenger?.username?.charAt(0) || '?'}
+                    <MatchAvatar user={match.challenger} size={48} />
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.username || 'Unknown'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -498,7 +540,7 @@ export default function MatchesPage() {
                           margin: '0 auto 8px',
                         }}
                       >
-                        {match.opponent.username.charAt(0)}
+                        <MatchAvatar user={match.opponent} size={48} />
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent.username}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -589,7 +631,7 @@ export default function MatchesPage() {
 
                   {/* Other users: "Join Battle" = accept + generate link */}
                   {match.status === 'ACTIVE' && match.challenger_id !== user?.id && !match.opponent_id && (
-                    <button className="btn-primary btn-sm" onClick={() => handleAccept(match.id)}>⚔️ Join Battle</button>
+                    <button className="btn-battle btn-battle-pulse" onClick={() => handleAccept(match.id)}>⚔️ Join Battle</button>
                   )}
 
                   {/* Opponent: Show "Join Battle Room" if accepted but not joined */}
@@ -598,7 +640,7 @@ export default function MatchesPage() {
                       href={match.opponent_invite_link}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn-primary btn-sm"
+                      className="btn-telegram"
                       style={{ textDecoration: 'none' }}
                     >
                       📱 Join Battle Room

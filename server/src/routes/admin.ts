@@ -419,7 +419,7 @@ router.get('/disputes', async (_req: Request, res: Response): Promise<void> => {
 
 // POST /admin/disputes/:id/resolve
 router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promise<void> => {
-  const { winner_id, resolution } = req.body;
+  const { winner_id, resolution, action } = req.body;
   const dispute = await prisma.dispute.findUnique({
     where: { id: req.params.id as string },
     include: { 
@@ -510,6 +510,55 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       await tx.notification.create({ data: { user_id: winner_id, title: 'Dispute Resolved — You Won! 🏆', message: `An admin resolved the dispute in your favor. ${winnerPayout.toLocaleString()} MMK added to wallet.` } });
       if (loserId) {
         await tx.notification.create({ data: { user_id: loserId, title: 'Dispute Resolved — You Lost 💀', message: `An admin resolved the dispute. You lost the match.` } });
+      }
+    } else if (action === 'void_collect') {
+      // Void & Collect — platform keeps all funds, no refunds
+      await tx.match.update({
+        where: { id: match.id },
+        data: { status: 'VOIDED', completed_at: new Date() },
+      });
+
+      // Clear frozen amounts for both players (funds are forfeited)
+      await tx.wallet.update({
+        where: { user_id: match.challenger_id },
+        data: { frozen_amount: { decrement: stakeAmount } },
+      });
+      await tx.transaction.create({
+        data: {
+          wallet_id: (match.challenger as any).wallet.id,
+          user_id: match.challenger_id,
+          type: 'COMMISSION',
+          amount: stakeAmount,
+          description: 'Stake collected by platform — dispute penalty (void & collect)',
+          match_id: match.id,
+        },
+      });
+
+      if (match.opponent_id && (match.opponent as any)?.wallet) {
+        await tx.wallet.update({
+          where: { user_id: match.opponent_id },
+          data: { frozen_amount: { decrement: stakeAmount } },
+        });
+        await tx.transaction.create({
+          data: {
+            wallet_id: (match.opponent as any).wallet.id,
+            user_id: match.opponent_id,
+            type: 'COMMISSION',
+            amount: stakeAmount,
+            description: 'Stake collected by platform — dispute penalty (void & collect)',
+            match_id: match.id,
+          },
+        });
+      }
+
+      // Record full pot as platform revenue
+      await tx.platformRevenue.create({
+        data: { match_id: match.id, amount: Number(match.total_pot) },
+      });
+
+      await tx.notification.create({ data: { user_id: match.challenger_id, title: 'Match Voided — Stakes Collected ⚠️', message: 'An admin voided this disputed match. Due to the dispute, stakes have been collected by the platform.' } });
+      if (match.opponent_id) {
+        await tx.notification.create({ data: { user_id: match.opponent_id, title: 'Match Voided — Stakes Collected ⚠️', message: 'An admin voided this disputed match. Due to the dispute, stakes have been collected by the platform.' } });
       }
     } else {
       // Void & Refund both

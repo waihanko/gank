@@ -7,6 +7,24 @@ import { useState, useEffect } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
+function UserAvatar({ src, name, telegramName, telegramDisplayName, size, borderRadius }: { src?: string, name: string, telegramName?: string, telegramDisplayName?: string, size: number, borderRadius: number }) {
+  const [error, setError] = useState(false);
+
+  if (src && !error) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setError(true)}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius }}
+      />
+    );
+  }
+
+  const initial = (telegramDisplayName || telegramName || name || 'U').replace('@', '').trim().charAt(0).toUpperCase();
+  return <span>{initial}</span>;
+}
+
 export default function LeaderboardPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,15 +115,14 @@ export default function LeaderboardPage() {
                     fontSize: size * 0.4,
                     fontWeight: 700,
                     margin: '0 auto 12px',
+                    overflow: 'hidden'
                   }}
                 >
-                  {player.username.charAt(0)}
+                  <UserAvatar src={player.avatar_url} name={player.username} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={size} borderRadius={20} />
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{player.username}</div>
                 <div style={{ fontSize: 13, color: 'var(--accent-secondary)', marginBottom: 4 }}>{player.mlbb_ign}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-                  @{player.telegram_username}
-                </div>
+                <div style={{ marginBottom: 16 }}></div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
                   <div>
                     <div className="font-display" style={{ fontSize: 22, fontWeight: 700, color: 'var(--neon-green)' }}>{player.wins}</div>
@@ -158,13 +175,13 @@ export default function LeaderboardPage() {
                           fontSize: 13,
                           fontWeight: 700,
                           flexShrink: 0,
+                          overflow: 'hidden'
                         }}
                       >
-                        {player.username.charAt(0)}
+                        <UserAvatar src={player.avatar_url} name={player.username} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={32} borderRadius={8} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{player.username}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{player.telegram_username}</div>
                       </div>
                     </div>
                   </td>

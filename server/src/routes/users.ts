@@ -16,6 +16,8 @@ router.get('/leaderboard', async (req: express.Request, res: express.Response): 
         mlbb_ign: true,
         wins: true,
         losses: true,
+        avatar_url: true,
+        telegram_display_name: true,
         is_banned: true,
         created_at: true,
         wallet: {
