@@ -15,14 +15,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
-      <body className="antialiased">
-        {/* Background orbs */}
+      <body className="antialiased" style={{ overscrollBehavior: 'none' }}>
+        {/* Background orbs — desktop only, hidden when mobile layout overrides with its own fixed bg */}
         <div
-          className="bg-glow-orb"
+          className="bg-glow-orb desktop-only-bg"
           style={{
             width: 500,
             height: 500,
@@ -32,7 +32,7 @@ export default function RootLayout({
           }}
         />
         <div
-          className="bg-glow-orb"
+          className="bg-glow-orb desktop-only-bg"
           style={{
             width: 400,
             height: 400,
@@ -48,3 +48,4 @@ export default function RootLayout({
     </html>
   );
 }
+

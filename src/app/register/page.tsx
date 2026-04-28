@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import { PLATFORM_NAME } from '@/lib/constants';
 
 type Step = 1 | 2 | 3;
 
@@ -118,7 +118,20 @@ export default function RegisterPage() {
 
   return (
     <>
-      <Navbar />
+      {/* Minimal auth header */}
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        background: 'rgba(10,10,15,0.9)', backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border-secondary)',
+        padding: '0 24px', height: 60, display: 'flex', alignItems: 'center',
+      }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👻</div>
+          <span className="font-display" style={{ fontSize: 16, fontWeight: 800, letterSpacing: 2 }}>
+            <span className="gradient-text">{PLATFORM_NAME.toUpperCase()}</span>
+          </span>
+        </Link>
+      </nav>
       <div className="page-container" style={{ maxWidth: 500, margin: '0 auto', padding: '60px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 className="font-display" style={{ fontSize: 28, fontWeight: 800 }}>
