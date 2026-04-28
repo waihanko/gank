@@ -54,21 +54,21 @@ export default function BattleHistoryPage() {
 
   // Stats
   const totalMatches = matches.length;
-  const wins = matches.filter(m => m.winner_id === user.id).length;
-  const losses = matches.filter(m => m.winner_id && m.winner_id !== user.id).length;
+  const wins = matches.filter(m => m.winner_id === user!.id).length;
+  const losses = matches.filter(m => m.winner_id && m.winner_id !== user!.id).length;
   const activeStatuses = ['PENDING_JOIN', 'ACTIVE', 'ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'];
   const activeCount = matches.filter(m => activeStatuses.includes(m.status)).length;
   const disputeCount = matches.filter(m => m.status === 'DISPUTED').length;
   const cancelCount = matches.filter(m => ['CANCELLED', 'VOIDED'].includes(m.status)).length;
   const winRate = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0';
   const totalEarned = matches
-    .filter(m => m.winner_id === user.id)
+    .filter(m => m.winner_id === user!.id)
     .reduce((s, m) => s + Number(m.total_pot || m.stake_amount), 0);
 
   // Filter
   const filtered = matches.filter(m => {
-    if (filter === 'won') return m.status === 'COMPLETED' && m.winner_id === user.id;
-    if (filter === 'lost') return m.status === 'COMPLETED' && m.winner_id && m.winner_id !== user.id;
+    if (filter === 'won') return m.status === 'COMPLETED' && m.winner_id === user!.id;
+    if (filter === 'lost') return m.status === 'COMPLETED' && m.winner_id && m.winner_id !== user!.id;
     if (filter === 'active') return activeStatuses.includes(m.status);
     if (filter === 'dispute') return m.status === 'DISPUTED';
     if (filter === 'cancel') return ['CANCELLED', 'VOIDED'].includes(m.status);
@@ -154,10 +154,10 @@ export default function BattleHistoryPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.map(m => {
-              const isChallenger = m.challenger?.id === user.id;
+              const isChallenger = m.challenger?.id === user!.id;
               const opponent = isChallenger ? m.opponent : m.challenger;
-              const won = m.winner_id === user.id;
-              const lost = m.winner_id && m.winner_id !== user.id;
+              const won = m.winner_id === user!.id;
+              const lost = m.winner_id && m.winner_id !== user!.id;
               const isCancel = ['CANCELLED', 'VOIDED'].includes(m.status);
               const isDispute = m.status === 'DISPUTED';
               const isActive = activeStatuses.includes(m.status);
