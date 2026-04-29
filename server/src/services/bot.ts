@@ -513,7 +513,7 @@ export function createBot(): Bot {
   bot.command('start', (ctx) => {
     const msg = [
       `┌─────────────────────────┐`,
-      `│   👻 <b>GHOST REFEREE</b>    │`,
+      `│   👻 <b>GOOD GAME</b>        │`,
       `└─────────────────────────┘`,
       ``,
       `Automated MLBB Escrow &amp; Battle Management`,
@@ -1058,7 +1058,7 @@ export async function generateInviteLink(chatId: string, linkName: string, fallb
 // =============================================
 // Match Claim Resolution Logic
 // =============================================
-async function resolveMatchClaims(matchId: string, chatId: string) {
+export async function resolveMatchClaims(matchId: string, chatId: string) {
   // Atomic lock: prevent concurrent resolution of the same match
   if (resolvingMatches.has(matchId)) {
     console.log(`[BOT] ⏭️ resolveMatchClaims already in progress for ${matchId}, skipping`);

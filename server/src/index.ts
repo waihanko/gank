@@ -11,6 +11,7 @@ import walletRoutes from './routes/wallet';
 import adminRoutes from './routes/admin';
 import usersRoutes from './routes/users';
 import notificationsRoutes from './routes/notifications';
+import battleRoomRoutes from './routes/battle-room';
 import { authMiddleware } from './middleware/auth';
 
 const app = express();
@@ -38,7 +39,7 @@ app.use(express.json());
 
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'ghost-referee-api', version: '1.0.0' });
+  res.json({ status: 'ok', service: 'good-game-api', version: '1.0.0' });
 });
 
 // Routes
@@ -48,6 +49,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/battle-room', battleRoomRoutes);
 
 // Telegram bot (polling mode for local dev)
 const bot = createBot();
@@ -66,7 +68,7 @@ try {
 httpServer.listen(env.PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════╗
-║     👻 Ghost Referee API Server          ║
+║     👻 Good Game API Server              ║
 ║     Port: ${env.PORT}                           ║
 ║     Env:  ${env.NODE_ENV}                  ║
 ╚══════════════════════════════════════════╝

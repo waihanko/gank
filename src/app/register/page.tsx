@@ -138,7 +138,7 @@ export default function RegisterPage() {
             👻 <span className="gradient-text">Create Account</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 8 }}>
-            3-step verification to join Ghost Referee
+            3-step verification to join Good Game
           </p>
         </div>
 

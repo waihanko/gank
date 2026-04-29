@@ -616,6 +616,31 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
     }
   }
 
+  // Notify WebSocket Battle Room
+  try {
+    const { emitMatchUpdate, getIO } = require('../services/socket');
+    const updatedMatch = await prisma.match.findUnique({ where: { id: match.id } });
+    
+    if (updatedMatch) {
+      emitMatchUpdate(match.id, { status: updatedMatch.status, completed_at: updatedMatch.completed_at });
+      
+      let systemMessage = `🎉 Dispute resolved!`;
+      if (updatedMatch.status === 'VOIDED') {
+         systemMessage = `⚠️ The match was VOIDED by an admin.`;
+      } else if (winner_id) {
+         const winnerUsername = winner_id === match.challenger_id ? match.challenger.username : match.opponent?.username;
+         systemMessage = `🏆 Dispute resolved! Admin awarded the victory to ${winnerUsername}.`;
+      }
+      
+      const sysMsg = await prisma.battleMessage.create({
+        data: { match_id: match.id, type: 'system', content: systemMessage }
+      });
+      getIO().to(`match:${match.id}`).emit('new-message', sysMsg);
+    }
+  } catch (err) {
+    console.warn('[ADMIN] Failed to emit socket updates for dispute:', err);
+  }
+
   res.json({ success: true, message: 'Dispute resolved' });
 });
 

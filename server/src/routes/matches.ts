@@ -46,8 +46,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       } : {}),
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
@@ -85,7 +85,7 @@ router.get('/leaderboard', async (req: Request, res: Response): Promise<void> =>
   try {
     const topPlayers = await prisma.user.findMany({
       where: { is_banned: false },
-      select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, avatar_url: true },
+      select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, avatar_url: true },
       orderBy: { wins: 'desc' },
       take: 10,
     });
@@ -101,7 +101,7 @@ router.get('/my-pending', authMiddleware, async (req: Request, res: Response): P
   const pendingMatch = await prisma.match.findFirst({
     where: { challenger_id: userId, status: 'PENDING_JOIN' },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true } },
       room: { select: { id: true, title: true } },
     },
   });
@@ -121,8 +121,8 @@ router.get('/my-recent', authMiddleware, async (req: Request, res: Response): Pr
     orderBy: { created_at: 'desc' },
     take: 2,
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
   });
@@ -140,8 +140,8 @@ router.get('/my-history', authMiddleware, async (req: Request, res: Response): P
       ]
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
@@ -186,31 +186,10 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // Find an available room
-  const availableRoom = await prisma.telegramRoom.findFirst({ where: { status: 'AVAILABLE' } });
-  if (!availableRoom) {
-    res.status(400).json({ success: false, error: 'No battle rooms available. Please try again later.' });
-    return;
-  }
-
-  // Generate match ID early for the link name
-  const matchId = crypto.randomUUID();
-  const linkName = `Challenger #${matchId.substring(0, 6)}`;
-
-  // Generate dynamic invite Link A (single-use, 5 min expiry, requires join request)
-  const challengerInviteLink = await generateInviteLink(availableRoom.chat_id, linkName, availableRoom.invite_link, true);
-
-  // Create match + assign room atomically
+  // Create match atomically
   try {
     const match = await prisma.$transaction(async (tx: any) => {
-
-      // 1. Acquire row-level lock on user's wallet to serialize concurrent requests
-      await tx.wallet.update({
-        where: { user_id: userId },
-        data: { balance: { increment: 0 } },
-      });
-
-      // 2. Double-check if user already has a live match
+      // 1. Double-check if user already has a live match
       const existing = await tx.match.findFirst({
         where: {
           OR: [
@@ -219,67 +198,49 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
           ],
         },
       });
-      if (existing) {
-        throw new Error('ALREADY_IN_MATCH');
-      }
+      if (existing) throw new Error('ALREADY_IN_MATCH');
 
-      // 3. Double-check room availability
-      const doubleCheckRoom = await tx.telegramRoom.findFirst({ where: { id: availableRoom.id, status: 'AVAILABLE' } });
-      if (!doubleCheckRoom) {
-        throw new Error('ROOM_TAKEN');
-      }
-
-      // 4. Mark room as occupied and increment hosted count
-      await tx.telegramRoom.update({
-        where: { id: availableRoom.id },
-        data: { 
-          status: 'OCCUPIED',
-          total_matches_hosted: { increment: 1 },
-          current_match_id: matchId // LINK ATOMICALLY
+      // 2. Freeze funds
+      await tx.wallet.update({
+        where: { user_id: userId },
+        data: {
+          balance: { decrement: stake_amount },
+          frozen_amount: { increment: stake_amount },
         },
       });
+
+      await tx.transaction.create({
+        data: {
+          wallet_id: wallet.id,
+          user_id: userId,
+          type: 'FREEZE',
+          amount: stake_amount,
+          description: 'Stake frozen for new challenge',
+        },
+      });
+
+      const matchId = crypto.randomUUID();
 
       return tx.match.create({
         data: {
           id: matchId,
           challenger_id: userId,
           stake_amount,
-          status: 'PENDING_JOIN', // NOT public yet
-          room_id: availableRoom.id,
-          challenger_invite_link: challengerInviteLink,
-          challenger_joined: false,
+          status: 'ACTIVE', // Public immediately
+          challenger_joined: true, // They are already in the app
           opponent_joined: false,
         },
       });
     });
 
-
-
-    // Schedule auto-cancel if challenger doesn't join within 5 minutes
-    try {
-      await schedulePendingJoinTimeout(match.id);
-    } catch (err) {
-      console.warn('[MATCHES] Could not schedule pending join timeout:', err);
-    }
-
     res.status(201).json({
       success: true,
-      data: {
-        match,
-        telegram_invite: challengerInviteLink,
-        room_title: availableRoom.title,
-      },
-      message: 'Join the Telegram room to activate your challenge.',
+      data: { match },
+      message: 'Challenge created successfully.',
     });
   } catch (error: any) {
-    if (challengerInviteLink) {
-      revokeInviteLinks(availableRoom.chat_id, [challengerInviteLink]).catch(() => {});
-    }
-
     if (error.message === 'ALREADY_IN_MATCH') {
       res.status(400).json({ success: false, error: 'You already have a live match. Finish or delete it first.' });
-    } else if (error.message === 'ROOM_TAKEN') {
-      res.status(400).json({ success: false, error: 'The room was just taken. Please try again.' });
     } else {
       console.error('[MATCHES] Transaction error:', error);
       res.status(500).json({ success: false, error: 'Internal server error during match creation' });
@@ -438,47 +399,72 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
     return;
   }
 
-  // Re-fetch match to get the latest opponent_invite_link (set by bot after challenger joins)
-  const freshMatch = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: { room: true },
-  });
-
-  let opponentInviteLink = freshMatch?.opponent_invite_link || null;
-
-  // If opponent_invite_link is still null (race condition: challenger join handler hasn't completed yet),
-  // generate a fresh dynamic invite link instead of falling back to the static room link
-  // (static links don't work when the group requires join requests)
-  if (!opponentInviteLink && freshMatch?.room) {
-    try {
-      const { generateInviteLink } = require('../services/bot');
-      const linkName = `Opponent #${matchId.substring(0, 6)}`;
-      opponentInviteLink = await generateInviteLink(freshMatch.room.chat_id, linkName, null, true);
-      
-      // Save it to the match for future use
-      if (opponentInviteLink) {
-        await prisma.match.update({
-          where: { id: matchId },
-          data: { opponent_invite_link: opponentInviteLink },
-        });
+  // Freeze funds and assign opponent
+  try {
+    const updatedMatch = await prisma.$transaction(async (tx: any) => {
+      // Re-check wallet balance inside transaction
+      const currentWallet = await tx.wallet.findUnique({ where: { user_id: opponentId } });
+      if (!currentWallet || Number(currentWallet.balance) < stakeAmount) {
+        throw new Error('INSUFFICIENT_BALANCE');
       }
+
+      await tx.wallet.update({
+        where: { user_id: opponentId },
+        data: {
+          balance: { decrement: stakeAmount },
+          frozen_amount: { increment: stakeAmount },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          wallet_id: currentWallet.id,
+          user_id: opponentId,
+          type: 'FREEZE',
+          amount: stakeAmount,
+          description: 'Stake frozen for accepted challenge',
+        },
+      });
+
+      return tx.match.update({
+        where: { id: matchId },
+        data: {
+          opponent_id: opponentId,
+          opponent_joined: true,
+          status: 'READY_CHECK', // Move directly to Ready Check
+        },
+      });
+    });
+    
+    // Broadcast updates
+    emitMatchUpdate(matchId, { status: 'READY_CHECK', opponent_id: opponentId, matchId });
+    
+    try {
+      const { getIO } = require('../services/socket');
+      const sysMsg = await prisma.battleMessage.create({
+        data: {
+          match_id: matchId,
+          type: 'system',
+          content: `${req.user!.username} joined the battle!`,
+        }
+      });
+      getIO().to(`match:${matchId}`).emit('new-message', sysMsg);
     } catch (err) {
-      console.error('[MATCHES] Failed to generate opponent invite link:', err);
+      console.warn('[MATCHES] Could not broadcast join message:', err);
+    }
+
+    res.json({
+      success: true,
+      data: { match: updatedMatch },
+      message: 'Challenge accepted!',
+    });
+  } catch (err: any) {
+    if (err.message === 'INSUFFICIENT_BALANCE') {
+      res.status(400).json({ success: false, error: 'Insufficient balance' });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to accept challenge' });
     }
   }
-
-  // DO NOT freeze funds or assign opponent_id here. 
-  // The bot will do this when the user physically joins the group.
-  
-  res.json({
-    success: true,
-    data: {
-      match: freshMatch || match,
-      telegram_invite: opponentInviteLink,
-      room_title: freshMatch?.room?.title || match.room?.title || 'Battle Room',
-    },
-    message: 'Link generated. Join the Telegram battle room to claim the match!',
-  });
 });
 
 // GET /matches/:id — get single match
@@ -486,8 +472,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   const match = await prisma.match.findUnique({
     where: { id: req.params.id as string },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       room: true,
     },
   });

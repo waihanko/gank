@@ -38,3 +38,8 @@ next-env.d.ts
 
 # Operational Scripts
 scripts/ops/
+
+build.b64
+build_chunk_*
+build.zip
+

@@ -2,7 +2,7 @@
 // Platform Constants
 // ========================
 
-export const PLATFORM_NAME = 'Ghost Referee';
+export const PLATFORM_NAME = 'Good Game';
 export const PLATFORM_TAGLINE = 'Automated MLBB Escrow & Matchmaking';
 export const PLATFORM_COMMISSION_RATE = 0.05; // 5%
 export const PLATFORM_CURRENCY = 'MMK';

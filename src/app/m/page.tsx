@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useDialog } from '@/lib/dialog-context';
@@ -44,6 +45,7 @@ function AvatarBox({ user, size = 40 }: { user: any; size?: number }) {
 const quickPresets = [1000, 2000, 5000, 10000];
 
 export default function MobileHomePage() {
+  const router = useRouter();
   const { isLoggedIn, user, token } = useAuth();
   const { showAlert, showConfirm } = useDialog();
 
@@ -56,7 +58,7 @@ export default function MobileHomePage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [telegramSheet, setTelegramSheet] = useState<{ show: boolean; inviteLink?: string; roomTitle?: string }>({ show: false });
+
 
   // The user's current active/pending match (if any)
   const myLive = myMatches.find(m =>
@@ -118,7 +120,7 @@ export default function MobileHomePage() {
         setShowCreate(false);
         setStakeInput('');
         load();
-        setTelegramSheet({ show: true, inviteLink: data.data.telegram_invite, roomTitle: data.data.room_title });
+        router.push('/m/battle/' + data.data.match.id);
       } else showAlert(data.error || 'Failed to create');
     } catch { showAlert('Network error'); }
     finally { setCreating(false); }
@@ -135,7 +137,7 @@ export default function MobileHomePage() {
   }
 
   return (
-    <div style={{ padding: '0 16px' }}>
+    <div style={{ padding: '0 16px 120px' }}>
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '16px 0 20px' }}>
@@ -273,7 +275,7 @@ export default function MobileHomePage() {
             {/* Join Battle Room — PENDING_JOIN challenger */}
             {myLive.status === 'PENDING_JOIN' && (myLive as any).challenger_invite_link && (
               <button
-                onClick={() => setTelegramSheet({ show: true, inviteLink: (myLive as any).challenger_invite_link, roomTitle: (myLive as any).room?.title || 'Battle Room' })}
+                onClick={() => router.push('/m/battle/' + (myLive as any).id)}
                 style={{
                   width: '100%', padding: '12px', borderRadius: 12, border: 'none', cursor: 'pointer',
                   background: 'linear-gradient(135deg, #0088cc, #006ba6)',
@@ -287,32 +289,38 @@ export default function MobileHomePage() {
 
             {/* Cancel — only ACTIVE + own challenge + no opponent yet */}
             {myLive.status === 'ACTIVE' && (myLive as any).challenger_id === (user as any)?.id && !(myLive as any).opponent_id && (
-              <button
-                onClick={() => showConfirm(
-                  'Cancel this challenge? Your stake will be returned.',
-                  () => doDelete((myLive as any).id)
-                )}
-                disabled={deleting}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: 12, border: '1px solid rgba(239,68,68,0.3)',
-                  background: 'rgba(239,68,68,0.08)', color: 'var(--neon-red)',
-                  fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                {deleting ? '...' : '🗑️ Delete Challenge'}
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => router.push('/m/battle/' + (myLive as any).id)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: 'var(--accent-primary)', color: 'white',
+                    fontWeight: 700, fontSize: 13,
+                  }}
+                >
+                  📱 View Room
+                </button>
+                <button
+                  onClick={() => showConfirm(
+                    'Cancel this challenge? Your stake will be returned.',
+                    () => doDelete((myLive as any).id)
+                  )}
+                  disabled={deleting}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 12, border: '1px solid rgba(239,68,68,0.3)',
+                    background: 'rgba(239,68,68,0.08)', color: 'var(--neon-red)',
+                    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  {deleting ? '...' : '🗑️ Delete'}
+                </button>
+              </div>
             )}
 
             {/* Open Telegram — in-progress statuses */}
             {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(myLive.status) && (
               <button
-                onClick={() => setTelegramSheet({
-                  show: true,
-                  inviteLink: (myLive as any).challenger_id === (user as any)?.id
-                    ? (myLive as any).challenger_invite_link
-                    : (myLive as any).opponent_invite_link,
-                  roomTitle: (myLive as any).room?.title || 'Battle Room',
-                })}
+                onClick={() => router.push('/m/battle/' + (myLive as any).id)}
                 style={{
                   width: '100%', padding: '12px', borderRadius: 12, border: 'none', cursor: 'pointer',
                   background: 'linear-gradient(135deg, #0088cc, #006ba6)',
@@ -350,7 +358,7 @@ export default function MobileHomePage() {
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>⚔️ Your Recent Matches</h2>
-            <Link href="/matches" style={{ fontSize: 11, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href="/m/battle-history" style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 600 }}>
               See all →
             </Link>
           </div>
@@ -379,7 +387,7 @@ export default function MobileHomePage() {
                 const isDone = ['COMPLETED', 'VOIDED', 'CANCELLED', 'DISPUTED'].includes(match.status);
 
                 return (
-                  <Link key={match.id} href="/matches" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link key={match.id} href={`/m/battle/${match.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                     <div style={{
                       background: 'var(--glass-bg)',
                       border: `1px solid ${isDone ? (isWin ? 'rgba(34,197,94,0.2)' : isLoss ? 'rgba(239,68,68,0.15)' : 'var(--glass-border)') : 'rgba(124,58,237,0.25)'}`,
@@ -435,7 +443,7 @@ export default function MobileHomePage() {
               LIVE
             </span>
           </h2>
-          <Link href="/matches" style={{ fontSize: 11, color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}>
+          <Link href="/m/live-challenges" style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none', fontWeight: 600 }}>
             See all →
           </Link>
         </div>
@@ -502,7 +510,7 @@ export default function MobileHomePage() {
                     </div>
 
                     {/* Join Battle — always shown */}
-                    <Link href="/matches" style={{
+                    <Link href={`/m/battle/${match.id}`} style={{
                       display: 'block', textAlign: 'center',
                       padding: '10px', borderRadius: 10, textDecoration: 'none',
                       background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
@@ -525,7 +533,7 @@ export default function MobileHomePage() {
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
             background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-primary)',
-            borderRadius: '24px 24px 0 0', padding: '24px 20px 48px',
+            borderRadius: '24px 24px 0 0', padding: '24px 20px calc(80px + env(safe-area-inset-bottom, 0px))',
             animation: 'slideUp 0.28s ease',
           }}>
             <div style={{ width: 36, height: 4, background: 'var(--border-secondary)', borderRadius: 2, margin: '0 auto 20px' }} />
@@ -592,51 +600,6 @@ export default function MobileHomePage() {
         </>
       )}
 
-      {/* ===== TELEGRAM INVITE SHEET ===== */}
-      {telegramSheet.show && (
-        <>
-          <div onClick={() => setTelegramSheet({ show: false })} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 200 }} />
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
-            background: 'var(--bg-secondary)', borderTop: '1px solid rgba(124,58,237,0.3)',
-            borderRadius: '24px 24px 0 0', padding: '24px 20px 48px',
-            textAlign: 'center', animation: 'slideUp 0.28s ease',
-          }}>
-            <div style={{ width: 36, height: 4, background: 'var(--border-secondary)', borderRadius: 2, margin: '0 auto 20px' }} />
-            <div style={{ fontSize: 52, marginBottom: 12 }}>📱</div>
-            <h2 className="font-display" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-              <span className="gradient-text">Challenge Posted!</span>
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
-              Join the Telegram room to manage your battle. Your stake is frozen until the match completes.
-            </p>
-            {telegramSheet.roomTitle && (
-              <div style={{ background: 'var(--bg-tertiary)', borderRadius: 12, padding: '10px 16px', marginBottom: 20, fontSize: 14, fontWeight: 600 }}>
-                🎮 {telegramSheet.roomTitle}
-              </div>
-            )}
-            {telegramSheet.inviteLink && (
-              <a href={telegramSheet.inviteLink} target="_blank" rel="noreferrer"
-                style={{
-                  display: 'block', padding: '16px', borderRadius: 14, textDecoration: 'none',
-                  background: 'linear-gradient(135deg, #0088cc, #006ba6)',
-                  color: 'white', fontWeight: 700, fontSize: 15, marginBottom: 12,
-                  boxShadow: '0 6px 20px rgba(0,136,204,0.4)',
-                }}
-                onClick={() => setTelegramSheet({ show: false })}
-              >
-                Open Telegram Room →
-              </a>
-            )}
-            <button onClick={() => setTelegramSheet({ show: false })} style={{
-              width: '100%', padding: '14px', borderRadius: 14, border: '1px solid var(--border-secondary)',
-              background: 'transparent', color: 'var(--text-secondary)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-            }}>
-              Close
-            </button>
-          </div>
-        </>
-      )}
 
       <style>{`
         @keyframes slideUp {

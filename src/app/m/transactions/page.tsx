@@ -56,11 +56,12 @@ export default function MobileTransactionsPage() {
   const balance = wallet ? Number(wallet.balance || 0) : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <div style={{ minHeight: '100%' }}>
 
       {/* ── Inner toolbar: back + title + wallet balance ── */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 40,
+        position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 480, zIndex: 40,
         background: 'rgba(10,10,15,0.97)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
@@ -107,8 +108,11 @@ export default function MobileTransactionsPage() {
         )}
       </div>
 
+      {/* Spacer for fixed toolbar */}
+      <div style={{ height: 68, flexShrink: 0 }} />
+
       {/* ── Content ── */}
-      <div style={{ padding: '16px 16px 32px', flex: 1 }}>
+      <div style={{ padding: '16px 16px 32px' }}>
 
         {/* Filter tabs */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>

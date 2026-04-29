@@ -3,10 +3,10 @@ import "./globals.css";
 import ClientProviders from "@/components/ClientProviders";
 
 export const metadata: Metadata = {
-  title: "Ghost Referee — Automated MLBB Escrow & Matchmaking",
+  title: "Good Game — Automated MLBB Escrow & Matchmaking",
   description:
     "The ultimate automated escrow platform for Mobile Legends: Bang Bang. Post custom stakes, get matched, and let our AI referee judge your battle. Zero friction. Maximum trust.",
-  keywords: ["MLBB", "Mobile Legends", "escrow", "matchmaking", "esports", "betting", "ghost referee"],
+  keywords: ["MLBB", "Mobile Legends", "escrow", "matchmaking", "esports", "betting", "good game"],
 };
 
 export default function RootLayout({

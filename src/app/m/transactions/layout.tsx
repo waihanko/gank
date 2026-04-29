@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import MobileBottomNav from '@/components/mobile/BottomNav';
 
 export const metadata: Metadata = {
-  title: 'Transaction History — Ghost Referee',
+  title: 'Transaction History — Good Game',
 };
 
 /**

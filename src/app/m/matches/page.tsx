@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useDialog } from '@/lib/dialog-context';
 import StatusBadge from '@/components/StatusBadge';
@@ -39,6 +40,7 @@ function AvatarBox({ user, size = 40, gradient = 'linear-gradient(135deg, var(--
 }
 
 export default function MobileMatchesPage() {
+  const router = useRouter();
   const { isLoggedIn, token, user } = useAuth();
   const { showAlert, showConfirm } = useDialog();
 
@@ -49,9 +51,7 @@ export default function MobileMatchesPage() {
   const [deleting, setDeleting] = useState(false);
   const [stakeInput, setStakeInput] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [telegramSheet, setTelegramSheet] = useState<{
-    show: boolean; inviteLink?: string; roomTitle?: string; type?: string;
-  }>({ show: false });
+
   const [timeLeft, setTimeLeft] = useState(0);
 
   const myLive = myMatches.find(m =>
@@ -107,7 +107,7 @@ export default function MobileMatchesPage() {
         setShowCreate(false);
         setStakeInput('');
         load();
-        setTelegramSheet({ show: true, type: 'challenger', inviteLink: data.data.telegram_invite, roomTitle: data.data.room_title });
+        router.push('/m/battle/' + data.data.match.id);
       } else showAlert(data.error || 'Failed to create');
     } catch { showAlert('Network error'); }
     finally { setCreating(false); }
@@ -122,7 +122,7 @@ export default function MobileMatchesPage() {
       const data = await res.json();
       if (data.success) {
         load();
-        setTelegramSheet({ show: true, type: 'opponent', inviteLink: data.data.telegram_invite, roomTitle: data.data.room_title || 'Battle Room' });
+        router.push('/m/battle/' + id);
       } else showAlert(data.error);
     } catch { showAlert('Network error'); }
   }
@@ -357,71 +357,7 @@ export default function MobileMatchesPage() {
         </>
       )}
 
-      {/* ===== TELEGRAM INVITE SHEET ===== */}
-      {telegramSheet.show && (
-        <>
-          <div
-            onClick={() => setTelegramSheet({ show: false })}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 200 }}
-          />
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
-            background: 'var(--bg-secondary)',
-            borderTop: '1px solid rgba(124,58,237,0.3)',
-            borderRadius: '24px 24px 0 0',
-            padding: '24px 20px 48px',
-            textAlign: 'center',
-            animation: 'slideUp 0.28s ease',
-          }}>
-            <div style={{ width: 36, height: 4, background: 'var(--border-secondary)', borderRadius: 2, margin: '0 auto 20px' }} />
-            <div style={{ fontSize: 52, marginBottom: 12 }}>📱</div>
-            <h2 className="font-display" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-              <span className="gradient-text">Battle Room Ready!</span>
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
-              {telegramSheet.type === 'challenger'
-                ? 'Your challenge is live. Join the Telegram room to manage the battle.'
-                : "You've joined the battle! Head to the Telegram room to get started."}
-            </p>
 
-            {telegramSheet.roomTitle && (
-              <div style={{
-                background: 'var(--bg-tertiary)', borderRadius: 12, padding: '10px 16px', marginBottom: 20,
-                fontSize: 14, fontWeight: 600,
-              }}>
-                🎮 {telegramSheet.roomTitle}
-              </div>
-            )}
-
-            {telegramSheet.inviteLink && (
-              <a
-                href={telegramSheet.inviteLink}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'block', padding: '16px', borderRadius: 14, textDecoration: 'none',
-                  background: 'linear-gradient(135deg, #0088cc, #006ba6)',
-                  color: 'white', fontWeight: 700, fontSize: 15, marginBottom: 12,
-                  boxShadow: '0 6px 20px rgba(0,136,204,0.4)',
-                }}
-                onClick={() => setTelegramSheet({ show: false })}
-              >
-                Open Telegram Room →
-              </a>
-            )}
-
-            <button
-              onClick={() => setTelegramSheet({ show: false })}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 14, border: '1px solid var(--border-secondary)',
-                background: 'transparent', color: 'var(--text-secondary)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </>
-      )}
 
       <style>{`
         @keyframes slideUp {

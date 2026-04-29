@@ -135,8 +135,8 @@ export default function HomePage() {
               animationDelay: '0.1s',
             }}
           >
-            <span className="gradient-text">GHOST</span>{' '}
-            <span style={{ color: 'var(--text-primary)' }}>REFEREE</span>
+            <span className="gradient-text">GOOD</span>{' '}
+            <span style={{ color: 'var(--text-primary)' }}>GAME</span>
           </h1>
 
           <p
@@ -437,7 +437,7 @@ export default function HomePage() {
             Ready to <span className="gradient-text">Prove Yourself?</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 15, marginBottom: 32, maxWidth: 400, margin: '0 auto 32px' }}>
-            Create a challenge with your custom stake and let the Ghost Referee handle the rest.
+            Create a challenge with your custom stake and let Good Game handle the rest.
           </p>
           <Link href="/matches" className="btn-primary" style={{ fontSize: 16, padding: '16px 40px' }}>
             🚀 Create Challenge

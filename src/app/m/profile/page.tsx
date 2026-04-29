@@ -242,7 +242,6 @@ export default function MobileProfilePage() {
       {/* Quick links */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
         {[
-          { href: '/matches',  icon: '⚔️', label: 'Battle History',      sub: 'View all your matches' },
           { href: '/transactions', icon: '📊', label: 'Transaction History', sub: 'Deposits, withdrawals & payouts' },
         ].map(link => (
           <Link

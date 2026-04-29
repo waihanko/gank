@@ -45,11 +45,12 @@ export default function MobileTopBar() {
   const [unreadCount, setUnreadCount]     = useState(0);
   const [showNotifs, setShowNotifs]       = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const btnRef   = useRef<HTMLButtonElement>(null);
 
   const normalized = pathname.replace(/^\/m(\/|$)/, '/').replace(/\/$/, '') || '/';
 
 
-  const page = pageTitles[normalized] ?? { title: 'Ghost Referee', emoji: '👻' };
+  const page = pageTitles[normalized] ?? { title: 'Good Game', emoji: '👻' };
 
   const wallet  = (user as any)?.wallet;
   const balance = isLoggedIn && wallet ? Number(wallet.balance || 0) : null;
@@ -88,7 +89,12 @@ export default function MobileTopBar() {
   // Close panel when clicking outside
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setShowNotifs(false);
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
+        setShowNotifs(false);
+      }
     }
     if (showNotifs) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -125,8 +131,8 @@ export default function MobileTopBar() {
           </div>
           <div>
             <div className="font-display" style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>
-              <span className="gradient-text">GHOST</span>
-              <span style={{ color: 'var(--text-primary)' }}> REFEREE</span>
+              <span className="gradient-text">GOOD</span>
+              <span style={{ color: 'var(--text-primary)' }}> GAME</span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 0.3, marginTop: 1 }}>
               {page.emoji} {page.title}
@@ -161,6 +167,7 @@ export default function MobileTopBar() {
 
               {/* Notification bell */}
               <button
+                ref={btnRef}
                 onClick={() => { setShowNotifs(v => !v); if (!showNotifs && unreadCount > 0) {} }}
                 style={{
                   position: 'relative', width: 36, height: 36, borderRadius: 10,

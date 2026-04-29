@@ -61,13 +61,23 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
     <>
       <Navbar />
       <div className="page-container" style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px 80px' }}>
-        <button
-          className="btn-secondary btn-sm"
-          style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 8 }}
-          onClick={() => router.push('/battle-history')}
-        >
-          ← Back to History
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <button
+            className="btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            onClick={() => router.push('/battle-history')}
+          >
+            ← Back to History
+          </button>
+          
+          <button
+            className="btn-telegram btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8 }}
+            onClick={() => router.push(`/battle/${match.id}`)}
+          >
+            📱 View Battle Room
+          </button>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Main Card */}

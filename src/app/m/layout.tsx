@@ -3,7 +3,7 @@ import MobileBottomNav from '@/components/mobile/BottomNav';
 import MobileTopBar from '@/components/mobile/TopBar';
 
 export const metadata: Metadata = {
-  title: 'Ghost Referee — Mobile',
+  title: 'Good Game — Mobile',
   description: 'Automated MLBB Escrow & Battle Management',
   other: {
     'apple-mobile-web-app-capable': 'yes',
@@ -61,10 +61,13 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
-          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           WebkitOverflowScrolling: 'touch' as any,
+          position: 'relative',
         }}>
           {children}
+          {/* Explicit spacer to ensure content scrolls above the bottom nav */}
+          <div style={{ height: 100, flexShrink: 0 }} />
         </main>
 
         {/* ③ Bottom nav — position:fixed, always visible */}

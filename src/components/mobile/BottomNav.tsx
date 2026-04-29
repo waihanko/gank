@@ -8,41 +8,28 @@ const tabs = [
     href: '/',
     label: 'Arena',
     icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
+      <span style={{ fontSize: 20 }}>👻</span>
     ),
   },
   {
-    href: '/matches',
-    label: 'Matches',
+    href: '/m/battle-history',
+    label: 'History',
     icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="M9 9l6 6M15 9l-6 6"/>
-      </svg>
+      <span style={{ fontSize: 20 }}>🕒</span>
     ),
   },
   {
     href: '/leaderboard',
     label: 'Ranks',
     icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-        <polyline points="17 6 23 6 23 12"/>
-      </svg>
+      <span style={{ fontSize: 20 }}>🏆</span>
     ),
   },
   {
     href: '/profile',
     label: 'Profile',
     icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
+      <span style={{ fontSize: 20 }}>👤</span>
     ),
   },
 ];
@@ -69,9 +56,10 @@ export default function MobileBottomNav() {
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
       {tabs.map((tab) => {
-        const isActive = tab.href === '/'
+        const strippedHref = tab.href.replace(/^\/m(\/|$)/, '/').replace(/\/$/, '') || '/';
+        const isActive = strippedHref === '/'
           ? normalized === '/' || normalized === ''
-          : normalized === tab.href || normalized.startsWith(tab.href + '/');
+          : normalized === strippedHref || normalized.startsWith(strippedHref + '/');
         return (
           <Link
             key={tab.href}

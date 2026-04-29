@@ -68,7 +68,7 @@ export default function LoginPage() {
           <h1 className="font-display" style={{ fontSize: 28, fontWeight: 800 }}>
             <span className="gradient-text">Welcome Back</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 8 }}>Login to Ghost Referee</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 8 }}>Login to Good Game</p>
         </div>
 
         <div className="glass-card" style={{ padding: 28 }}>

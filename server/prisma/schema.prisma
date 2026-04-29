@@ -56,6 +56,7 @@ model User {
   disputes_resolved  Dispute[]     @relation("Resolver")
   screenshots        MatchScreenshot[]
   notifications      Notification[]
+  battle_messages    BattleMessage[]  @relation("BattleMessages")
 
   @@unique([mlbb_server_id, mlbb_zone_id])
   @@map("users")
@@ -134,6 +135,7 @@ model Match {
   transactions Transaction[]
   disputes     Dispute[]
   revenue      PlatformRevenue[]
+  battle_messages BattleMessage[]
 
   @@map("matches")
 }
@@ -229,4 +231,20 @@ model Notification {
 
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   @@map("notifications")
+}
+
+model BattleMessage {
+  id         String   @id @default(uuid())
+  match_id   String
+  sender_id  String?
+  type       String   @default("text")   // text | system | ready | claim | screenshot
+  content    String
+  media_url  String?
+  created_at DateTime @default(now())
+
+  match  Match @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  sender User? @relation("BattleMessages", fields: [sender_id], references: [id])
+
+  @@index([match_id, created_at])
+  @@map("battle_messages")
 }

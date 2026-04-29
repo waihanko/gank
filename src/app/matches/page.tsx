@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
@@ -32,6 +33,7 @@ function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: numbe
 }
 
 export default function MatchesPage() {
+  const router = useRouter();
   const [stakeInput, setStakeInput] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { isLoggedIn, requireAuth, token, user } = useAuth();
@@ -106,13 +108,7 @@ export default function MatchesPage() {
     action();
   }
 
-  const [telegramDialog, setTelegramDialog] = useState<{
-    show: boolean;
-    type: 'challenger' | 'opponent';
-    inviteLink?: string;
-    roomTitle?: string;
-    matchId?: string;
-  }>({ show: false, type: 'challenger' });
+
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -142,13 +138,7 @@ export default function MatchesPage() {
         fetchMatches();
         fetchMyLive();
         
-        setTelegramDialog({
-          show: true,
-          type: 'challenger',
-          inviteLink: data.data.telegram_invite,
-          roomTitle: data.data.room_title,
-          matchId: data.data.match.id
-        });
+        router.push('/battle/' + data.data.match.id);
       } else {
         showAlert(data.error);
       }
@@ -172,7 +162,7 @@ export default function MatchesPage() {
         if (data.success) {
           fetchMatches();
           fetchMyLive();
-          setTelegramDialog({ show: false, type: 'challenger' });
+          router.push('/battle/' + myLiveMatch.id);
         } else {
           showAlert(data.error);
         }
@@ -220,13 +210,7 @@ export default function MatchesPage() {
         fetchMatches();
         fetchMyLive();
         
-        setTelegramDialog({
-          show: true,
-          type: 'opponent',
-          inviteLink: data.data.telegram_invite,
-          roomTitle: data.data.room_title || 'Battle Room',
-          matchId: id
-        });
+        router.push('/battle/' + id);
       } else {
         showAlert(data.error);
       }
@@ -405,17 +389,20 @@ export default function MatchesPage() {
 
               {/* Action Buttons / Results */}
               <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
-                {match.status === 'PENDING_JOIN' && match.challenger_invite_link && (
-                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => setTelegramDialog({
-                    show: true, type: 'challenger', inviteLink: match.challenger_invite_link!, roomTitle: match.room?.title || 'Battle Room'
-                  })}>
+                {match.status === 'PENDING_JOIN' && (
+                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => router.push('/battle/' + match.id)}>
                     📱 Join Battle Room
                   </button>
                 )}
                 {match.status === 'ACTIVE' && match.challenger_id === user?.id && !match.opponent_id && (
-                  <button className="btn-danger" onClick={() => handleDelete(match.id)} disabled={deleting} style={{ width: '100%' }}>
-                    {deleting ? '...' : '🗑️ Delete Challenge'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn-telegram" onClick={() => router.push('/battle/' + match.id)} style={{ flex: 1 }}>
+                      📱 View Room
+                    </button>
+                    <button className="btn-danger" onClick={() => handleDelete(match.id)} disabled={deleting} style={{ flex: 1 }}>
+                      {deleting ? '...' : '🗑️ Delete'}
+                    </button>
+                  </div>
                 )}
                 {match.status === 'PENDING_JOIN' && match.challenger_id === user?.id && !match.opponent_id && (
                   <button className="btn-danger" onClick={() => handleDelete(match.id)} disabled={deleting} style={{ width: '100%' }}>
@@ -423,12 +410,8 @@ export default function MatchesPage() {
                   </button>
                 )}
                 {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(match.status) && (
-                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => setTelegramDialog({
-                    show: true, type: match.challenger_id === user?.id ? 'challenger' : 'opponent',
-                    inviteLink: match.challenger_id === user?.id ? match.challenger_invite_link : match.opponent_invite_link,
-                    roomTitle: match.room?.title || 'Battle Room'
-                  })}>
-                    📱 Open Telegram
+                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => router.push('/battle/' + match.id)}>
+                    📱 Open Room
                   </button>
                 )}
                 
@@ -759,108 +742,6 @@ export default function MatchesPage() {
                 {creating ? '🚀 Posting...' : '🚀 Post Challenge'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Telegram Join Dialog */}
-      {telegramDialog.show && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => setTelegramDialog({ show: false, type: 'challenger' })}
-        >
-          <div
-            className="glass-card animate-glow-pulse"
-            style={{
-              maxWidth: 480,
-              width: '90%',
-              padding: 32,
-              textAlign: 'center',
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-primary)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
-            
-            <h3 className="font-display" style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
-              <span className="gradient-text">
-                {telegramDialog.type === 'challenger' ? 'Join Battle Room' : 'Battle Room Ready'}
-              </span>
-            </h3>
-            
-            <p style={{ fontSize: 15, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
-              {telegramDialog.type === 'challenger' 
-                ? `Your challenge has been posted! Join the Telegram room "${telegramDialog.roomTitle}" to activate your challenge. The bot will detect when you join.`
-                : `You've accepted the challenge! Join the Telegram room "${telegramDialog.roomTitle}" to start the battle. Both players must click "READY TO START" within 2 minutes.`
-              }
-            </p>
-
-            <div style={{ 
-              background: 'var(--bg-tertiary)', 
-              borderRadius: 12, 
-              padding: 16, 
-              marginBottom: 24,
-              border: '1px solid var(--border-secondary)'
-            }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Invite Link</div>
-              <div style={{ 
-                fontSize: 11, 
-                fontFamily: 'monospace', 
-                wordBreak: 'break-all',
-                color: 'var(--accent-primary)',
-                background: 'rgba(99,102,241,0.1)',
-                padding: 8,
-                borderRadius: 6,
-                marginBottom: 16
-              }}>
-                {telegramDialog.inviteLink}
-              </div>
-              
-              {telegramDialog.inviteLink && (
-                <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', padding: 16, borderRadius: 8, width: 'fit-content', margin: '0 auto' }}>
-                  <QRCodeSVG value={telegramDialog.inviteLink} size={150} />
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button 
-                className="btn-secondary" 
-                style={{ flex: 1 }}
-                onClick={() => setTelegramDialog({ show: false, type: 'challenger' })}
-              >
-                Close
-              </button>
-              <button 
-                className="btn-primary" 
-                style={{ flex: 1 }}
-                onClick={() => {
-                  if (telegramDialog.inviteLink) {
-                    window.open(telegramDialog.inviteLink, '_blank');
-                  }
-                }}
-              >
-                📱 Open Telegram
-              </button>
-            </div>
-
-            {telegramDialog.type === 'challenger' && (
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16, fontStyle: 'italic' }}>
-                ⏰ Your challenge will appear as "Active" on the website once the bot confirms you've joined the room.
-              </p>
-            )}
           </div>
         </div>
       )}
