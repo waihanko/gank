@@ -38,7 +38,11 @@ export default function LoginPage() {
 
       localStorage.setItem('gr_token', data.data.token);
       localStorage.setItem('gr_user', JSON.stringify(data.data.user));
-      window.location.href = '/matches';
+      if (window.innerWidth < 768) {
+        window.location.href = '/m';
+      } else {
+        window.location.href = '/matches';
+      }
     } catch {
       setError('Login failed. Try again.');
     } finally {
