@@ -90,6 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success) {
         setUser(data.data);
         localStorage.setItem('gr_user', JSON.stringify(data.data));
+      } else if (res.status === 401) {
+        logout();
       }
     } catch {}
   }
@@ -105,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success) {
         setUser((prev) => prev ? { ...prev, ...data.data } : data.data);
         localStorage.setItem('gr_user', JSON.stringify({ ...user, ...data.data }));
+      } else if (res.status === 401) {
+        logout();
       }
     } catch (e) {
       console.error('Failed to sync profile', e);

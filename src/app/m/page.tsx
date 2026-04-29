@@ -136,6 +136,31 @@ export default function MobileHomePage() {
     setDeleting(false);
   }
 
+  async function handleAccept(id: string, amount: number) {
+    if (!isLoggedIn) { window.location.href = '/login'; return; }
+    const bal = user?.wallet?.balance || 0;
+    if (bal < amount) {
+      showAlert(`Insufficient balance! You need ${formatCurrency(amount)}`);
+      return;
+    }
+    showConfirm(`Accept challenge for ${formatCurrency(amount)}?`, async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/matches/${id}/accept`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          router.push(`/m/battle/${id}`);
+        } else {
+          showAlert(data.error || 'Failed to accept challenge');
+        }
+      } catch {
+        showAlert('Network error');
+      }
+    });
+  }
+
   return (
     <div style={{ padding: '0 16px 120px' }}>
 
@@ -195,7 +220,7 @@ export default function MobileHomePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             {/* Challenger */}
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ margin: '0 auto 6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
                 <AvatarBox user={(myLive as any).challenger} size={44} />
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -220,7 +245,7 @@ export default function MobileHomePage() {
             <div style={{ flex: 1, textAlign: 'center' }}>
               {(myLive as any).opponent ? (
                 <>
-                  <div style={{ margin: '0 auto 6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
                     <AvatarBox user={(myLive as any).opponent} size={44} />
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -510,15 +535,15 @@ export default function MobileHomePage() {
                     </div>
 
                     {/* Join Battle — always shown */}
-                    <Link href={`/m/battle/${match.id}`} style={{
-                      display: 'block', textAlign: 'center',
-                      padding: '10px', borderRadius: 10, textDecoration: 'none',
+                    <button onClick={() => handleAccept(match.id, match.stake_amount)} style={{
+                      display: 'block', width: '100%', textAlign: 'center', border: 'none',
+                      padding: '10px', borderRadius: 10, textDecoration: 'none', cursor: 'pointer',
                       background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
                       color: 'white', fontWeight: 700, fontSize: 13,
                       boxShadow: '0 4px 12px var(--accent-glow)',
                     }}>
                       ⚔️ Join Battle
-                    </Link>
+                    </button>
                   </div>
                 );
               })}

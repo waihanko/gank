@@ -170,11 +170,11 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
       <div style={{ background: 'rgba(124, 58, 237, 0.1)', border: '1px solid var(--border-primary)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Opponent Info</div>
          {opponent ? (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white', overflow: 'hidden', flexShrink: 0 }}>
-                  <MatchAvatar user={opponent} size={48} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', textAlign: 'center' }}>
+               <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white', overflow: 'hidden', flexShrink: 0 }}>
+                  <MatchAvatar user={opponent} size={64} />
                </div>
-               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: 'white' }}>{opponent.mlbb_ign || opponent.username || 'Unknown'}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                      Server: <span style={{ color: 'white', fontWeight: 600 }}>{opponent.mlbb_server_id || '---'}</span> • 
@@ -183,8 +183,8 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
                </div>
             </div>
          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, border: '2px dashed var(--border-secondary)', flexShrink: 0 }}>?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+              <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, border: '2px dashed var(--border-secondary)', flexShrink: 0 }}>?</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)' }}>Waiting for opponent...</div>
             </div>
          )}

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { generateToken } from '../middleware/auth';
+import { generateToken, authMiddleware } from '../middleware/auth';
 import { verifyMLBBAccount } from '../services/mlbb';
 import { verifyTelegramUsername } from '../services/telegram';
 
@@ -383,7 +383,7 @@ router.post('/login/mlbb', async (req: Request, res: Response): Promise<void> =>
 // ========================
 // Get current user profile
 // ========================
-router.get('/me', async (req: Request, res: Response): Promise<void> => {
+router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   if (!req.user) {
     res.status(401).json({ success: false, error: 'Not authenticated' });
     return;
@@ -426,7 +426,7 @@ router.get('/me', async (req: Request, res: Response): Promise<void> => {
 // ========================
 // Sync Telegram Profile
 // ========================
-router.post('/sync-profile', async (req: Request, res: Response): Promise<void> => {
+router.post('/sync-profile', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   if (!req.user) {
     res.status(401).json({ success: false, error: 'Not authenticated' });
     return;
