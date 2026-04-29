@@ -54,10 +54,20 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
       fetch(`${API_URL}/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch(`${API_URL}/api/battle-room/${matchId}/messages`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
     ]).then(([matchData, msgData]) => {
-      if (matchData.success) setMatch(matchData.data);
-      else showAlert(matchData.error || 'Failed to load match');
+      if (matchData.success) {
+        setMatch(matchData.data);
+      } else {
+        showAlert(matchData.error || 'Failed to load match');
+        router.push('/m'); // Redirect back if match fails to load
+      }
       
-      if (msgData.success) setMessages(msgData.data);
+      if (msgData.success) {
+        setMessages(msgData.data);
+      }
+    }).catch(err => {
+      console.error("Fetch error:", err);
+      showAlert("Network error while loading match. Check console.");
+      router.push('/m');
     });
 
     const newSocket = io(API_URL || window.location.origin, {
