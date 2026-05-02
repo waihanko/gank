@@ -35,10 +35,29 @@ router.get('/:matchId/messages', authMiddleware, async (req: Request, res: Respo
       sender: { select: { id: true, username: true, mlbb_ign: true, avatar_url: true } }
     },
     orderBy: { created_at: 'asc' },
-    take: 200 // Limit history for performance
+    take: 200
   });
 
   res.json({ success: true, data: messages });
+});
+
+// GET /api/battle-room/:matchId/messages/count — Lightweight heartbeat check
+router.get('/:matchId/messages/count', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const matchId = req.params.matchId as string;
+  const userId = req.user!.userId;
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { challenger_id: true, opponent_id: true }
+  });
+
+  if (!match || (match.challenger_id !== userId && match.opponent_id !== userId)) {
+    res.status(403).json({ success: false, error: 'Not authorized' });
+    return;
+  }
+
+  const count = await prisma.battleMessage.count({ where: { match_id: matchId } });
+  res.json({ success: true, count });
 });
 
 // POST /api/battle-room/:matchId/ready — Player clicks Ready
@@ -175,8 +194,10 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
         });
         getIO().to(`match:${matchId}`).emit('new-message', resolveMsg);
       } else if (updatedMatch.status === 'DISPUTED') {
+        const isBothLost = updatedMatch.challenger_claim === 'LOST' && updatedMatch.opponent_claim === 'LOST';
+        const disputeReason = isBothLost ? "Both players conceded defeat." : "Both players claimed victory.";
         const disputeMsg = await prisma.battleMessage.create({
-          data: { match_id: matchId, type: 'system', content: `⚠️ Match is DISPUTED! Both players claimed victory. An admin will review.` }
+          data: { match_id: matchId, type: 'system', content: `⚠️ Match is DISPUTED! ${disputeReason} An admin will review.` }
         });
         getIO().to(`match:${matchId}`).emit('new-message', disputeMsg);
       }

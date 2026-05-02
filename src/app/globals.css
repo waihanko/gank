@@ -579,3 +579,7 @@ input, textarea {
     font-size: 13px;
   }
 }
+
+main:has(.mobile-battle-room) #mobile-bottom-spacer {
+  display: none !important;
+}

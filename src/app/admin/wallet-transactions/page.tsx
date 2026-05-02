@@ -3,13 +3,12 @@
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const WALLET_TX_CONFIG: Record<string, { icon: string; color: string }> = {
-  DEPOSIT: { icon: '📥', color: '#22c55e' },
-  WITHDRAWAL: { icon: '📤', color: '#ef4444' },
-  REFUND: { icon: '↩️', color: '#06b6d4' },
-  DEPOSIT_PENDING: { icon: '⏳', color: '#eab308' },
+  DEPOSIT: { icon: '', color: '#22c55e' },
+  WITHDRAWAL: { icon: '', color: '#ef4444' },
+  REFUND: { icon: '', color: '#06b6d4' },
 };
 
 export default function AdminWalletTransactionsPage() {
@@ -54,7 +53,7 @@ export default function AdminWalletTransactionsPage() {
     <div className="page-container">
       <div style={{ marginBottom: 32 }}>
         <h1 className="font-display" style={{ fontSize: 28, fontWeight: 800 }}>
-          💳 <span className="gradient-text">Wallet Transactions</span>
+          ?? <span className="gradient-text">Wallet Transactions</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
           Deposit, withdrawal, and refund transactions
@@ -95,7 +94,7 @@ export default function AdminWalletTransactionsPage() {
               cursor: 'pointer',
             }}
           >
-            {t}
+            {WALLET_TX_CONFIG[t]?.icon || '??'} {t}
           </button>
         ))}
       </div>
@@ -118,7 +117,7 @@ export default function AdminWalletTransactionsPage() {
             </thead>
             <tbody>
               {filtered.map((tx) => {
-                const config = WALLET_TX_CONFIG[tx.type] || { icon: '📄', color: '#6b7280' };
+                const config = WALLET_TX_CONFIG[tx.type] || { icon: '??', color: '#6b7280' };
                 return (
                   <tr key={tx.id}>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(tx.created_at)}</td>

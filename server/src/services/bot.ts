@@ -1195,9 +1195,12 @@ export async function resolveMatchClaims(matchId: string, chatId: string) {
     console.log(`[BOT] \u2705 Match ${matchId} auto-resolved: ${winnerName} won`);
   }
 
-  // Case 2: Both claim WON → auto-dispute
-  else if (match.challenger_claim === 'WON' && match.opponent_claim === 'WON') {
-    console.log(`[BOT] \u26A0\uFE0F Both players claim WON for match ${matchId} — creating dispute`);
+  // Case 2: Both claim WON or Both claim LOST -> auto-dispute
+  else if (match.challenger_claim === match.opponent_claim) {
+    const isBothLost = match.challenger_claim === 'LOST';
+    const claimText = isBothLost ? 'DEFEAT' : 'VICTORY';
+    
+    console.log(`[BOT] \u26A0\uFE0F Both players claim ${match.challenger_claim} for match ${matchId} — creating dispute`);
 
     await prisma.match.update({ where: { id: matchId }, data: { status: 'DISPUTED' } });
 
@@ -1206,14 +1209,14 @@ export async function resolveMatchClaims(matchId: string, chatId: string) {
       data: {
         match_id: matchId,
         reported_by_id: match.challenger_id,
-        reason: 'Both players claim victory. Admin review required.',
+        reason: isBothLost ? 'Both players claim defeat. Admin review required.' : 'Both players claim victory. Admin review required.',
         status: 'PENDING',
       },
     });
 
-    await prisma.notification.create({ data: { user_id: match.challenger_id, title: '\u26A0\uFE0F Match Disputed', message: 'Both players claimed victory. An admin will review the match.' } });
+    await prisma.notification.create({ data: { user_id: match.challenger_id, title: '\u26A0\uFE0F Match Disputed', message: `Both players claimed ${claimText.toLowerCase()}. An admin will review the match.` } });
     if (match.opponent_id) {
-      await prisma.notification.create({ data: { user_id: match.opponent_id, title: '\u26A0\uFE0F Match Disputed', message: 'Both players claimed victory. An admin will review the match.' } });
+      await prisma.notification.create({ data: { user_id: match.opponent_id, title: '\u26A0\uFE0F Match Disputed', message: `Both players claimed ${claimText.toLowerCase()}. An admin will review the match.` } });
     }
 
     const msg = [
@@ -1221,7 +1224,7 @@ export async function resolveMatchClaims(matchId: string, chatId: string) {
       `║  ⚠️ <b>MATCH DISPUTED!</b>       ║`,
       `╚══════════════════════════════╝`,
       ``,
-      `Both players claim <b>VICTORY</b>.`,
+      `Both players claim <b>${claimText}</b>.`,
       `This match is now under <b>admin review</b>.`,
       ``,
       `📸 Upload your scoreboard screenshots`,
@@ -1233,15 +1236,7 @@ export async function resolveMatchClaims(matchId: string, chatId: string) {
     try { await bot!.api.sendMessage(numChatId, msg, { parse_mode: 'HTML' }); } catch {}
   }
 
-  // Case 3: Both claim LOST (very rare, possibly trolling) → void
-  else if (match.challenger_claim === 'LOST' && match.opponent_claim === 'LOST') {
-    console.log(`[BOT] \u2753 Both players claim LOST for match ${matchId} — voiding`);
-    await prisma.match.update({ where: { id: matchId }, data: { status: 'DISPUTED' } });
-    await prisma.dispute.create({
-      data: { match_id: matchId, reported_by_id: match.challenger_id, reason: 'Both players claim defeat. Suspicious activity.', status: 'PENDING' },
-    });
-    try { await bot!.api.sendMessage(numChatId, `❓ Both players claim defeat. This match has been flagged for <b>admin review</b>.`, { parse_mode: 'HTML' }); } catch {}
-  }
+
 
   } finally {
     resolvingMatches.delete(matchId);

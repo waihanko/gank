@@ -70,12 +70,20 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
       router.push('/m');
     });
 
+    // 1. Force websocket-first (skip slow polling upgrade)
     const newSocket = io(API_URL || window.location.origin, {
       auth: { token },
-      transports: ['websocket', 'polling']
+      transports: ['websocket'],       // Skip polling entirely
+      reconnectionAttempts: Infinity,  // Keep trying forever
+      reconnectionDelay: 1000,
     });
 
     newSocket.on('connect', () => {
+      newSocket.emit('join-match', matchId);
+    });
+
+    // 2. Re-join the match room automatically on every reconnect
+    newSocket.on('reconnect', () => {
       newSocket.emit('join-match', matchId);
     });
 
@@ -90,7 +98,32 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
 
     setSocket(newSocket);
 
+    // 3. Heartbeat: every 10s, check if we missed any messages
+    const heartbeatId = setInterval(async () => {
+      // Only run if socket is connected — avoids hammering a dead server
+      if (!newSocket.connected) return;
+      try {
+        const res = await fetch(`${API_URL}/api/battle-room/${matchId}/messages/count`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) return;
+        setMessages(prev => {
+          // If server has more messages than we have, pull the ones we're missing
+          if (data.count > prev.length) {
+            fetch(`${API_URL}/api/battle-room/${matchId}/messages?after=${prev[prev.length - 1]?.id || ''}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            }).then(r => r.json()).then(full => {
+              if (full.success) setMessages(full.data);
+            }).catch(() => {});
+          }
+          return prev;
+        });
+      } catch {}
+    }, 10000);
+
     return () => {
+      clearInterval(heartbeatId);
       newSocket.disconnect();
     };
   }, [matchId, token, isLoggedIn, loading]);
@@ -299,7 +332,7 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
+    <div className="mobile-battle-room" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
       {/* Top Navbar */}
       <div style={{
         height: 60, background: 'rgba(10, 10, 15, 0.8)', backdropFilter: 'blur(20px)',
@@ -382,7 +415,7 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
         <div style={{ 
           padding: '12px 16px', borderTop: '1px solid var(--border-secondary)', 
           background: 'rgba(10, 10, 15, 0.95)', backdropFilter: 'blur(20px)',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))', flexShrink: 0 
+          marginBottom: 55, flexShrink: 0 
         }}>
           <form onSubmit={sendMessage} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input

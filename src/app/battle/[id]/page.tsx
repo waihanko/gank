@@ -80,13 +80,20 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
       router.push('/matches');
     });
 
-    // Setup Socket
+    // 1. Force websocket-first (skip slow polling upgrade)
     const newSocket = io(API_URL || window.location.origin, {
       auth: { token },
-      transports: ['websocket', 'polling']
+      transports: ['websocket'],       // Skip polling entirely
+      reconnectionAttempts: Infinity,  // Keep trying forever
+      reconnectionDelay: 1000,
     });
 
     newSocket.on('connect', () => {
+      newSocket.emit('join-match', matchId);
+    });
+
+    // 2. Re-join the match room automatically on every reconnect
+    newSocket.on('reconnect', () => {
       newSocket.emit('join-match', matchId);
     });
 
@@ -101,7 +108,30 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
 
     setSocket(newSocket);
 
+    // 3. Heartbeat: every 10s, check if we missed any messages
+    const heartbeatId = setInterval(async () => {
+      if (!newSocket.connected) return;
+      try {
+        const res = await fetch(`${API_URL}/api/battle-room/${matchId}/messages/count`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) return;
+        setMessages(prev => {
+          if (data.count > prev.length) {
+            fetch(`${API_URL}/api/battle-room/${matchId}/messages?after=${prev[prev.length - 1]?.id || ''}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            }).then(r => r.json()).then(full => {
+              if (full.success) setMessages(full.data);
+            }).catch(() => {});
+          }
+          return prev;
+        });
+      } catch {}
+    }, 10000);
+
     return () => {
+      clearInterval(heartbeatId);
       newSocket.disconnect();
     };
   }, [matchId, token, isLoggedIn, loading]);

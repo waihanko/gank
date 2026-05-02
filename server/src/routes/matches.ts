@@ -426,12 +426,17 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
         },
       });
 
+      const totalPot = stakeAmount * 2;
+      const commission = totalPot * 0.05;
+
       return tx.match.update({
         where: { id: matchId },
         data: {
           opponent_id: opponentId,
           opponent_joined: true,
           status: 'READY_CHECK', // Move directly to Ready Check
+          total_pot: totalPot,
+          commission: commission,
         },
       });
     });

@@ -67,7 +67,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         }}>
           {children}
           {/* Explicit spacer to ensure content scrolls above the bottom nav */}
-          <div style={{ height: 100, flexShrink: 0 }} />
+          <div id="mobile-bottom-spacer" style={{ height: 100, flexShrink: 0 }} />
         </main>
 
         {/* ③ Bottom nav — position:fixed, always visible */}
