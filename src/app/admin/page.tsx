@@ -42,6 +42,7 @@ export default function AdminDashboard() {
       if (disputesData.success) setDisputes(disputesData.data.filter((d: any) => d.status === 'PENDING'));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      window.location.href = '/admin/error?message=The administrative dashboard could not be synchronized with the core server. Please check your network connection.';
     }
     setLoading(false);
   }
@@ -118,9 +119,9 @@ export default function AdminDashboard() {
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{shortenId(match.id)}</td>
                   <td>
                     <span style={{ fontWeight: 600, fontSize: 13 }}>
-                      {match.challenger?.username}
+                      {match.challenger?.mlbb_ign || match.challenger?.username}
                       <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>vs</span>
-                      {match.opponent?.username || '—'}
+                      {match.opponent?.mlbb_ign || match.opponent?.username || '—'}
                     </span>
                   </td>
                   <td className="font-display" style={{ fontWeight: 600, color: 'var(--neon-yellow)', fontSize: 13 }}>

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { adminMiddleware, generateAdminToken } from '../middleware/auth';
 import { z } from 'zod';
-import { createBot, getBotWebhookHandler, sendDirectMessage, kickAndWipeRoom } from '../services/bot';
+import { createBot, getBotWebhookHandler, sendDirectMessage } from '../services/bot';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -193,7 +193,7 @@ router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
     prisma.match.count(),
     prisma.match.count({ where: { status: { in: ['WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'] } } }),
     prisma.dispute.count({ where: { status: 'PENDING' } }),
-    prisma.telegramRoom.groupBy({ by: ['status'], _count: true }),
+    prisma.telegramGroup.count(),
   ]);
 
   const totalRevenue = await prisma.platformRevenue.aggregate({ _sum: { amount: true } });
@@ -206,7 +206,7 @@ router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
       activeMatches,
       pendingDisputes,
       totalRevenue: totalRevenue._sum.amount || 0,
-      rooms: rooms.reduce((acc: Record<string, number>, r: any) => ({ ...acc, [r.status]: r._count }), {}),
+      totalGroups: rooms,
     },
   });
 });
@@ -245,8 +245,7 @@ router.get('/users/:id/matches', async (req: Request, res: Response): Promise<vo
     include: {
       challenger: { select: { username: true, mlbb_ign: true } },
       opponent: { select: { username: true, mlbb_ign: true } },
-      winner: { select: { username: true } },
-      room: { select: { title: true } }
+      winner: { select: { username: true } }
     },
     orderBy: { created_at: 'desc' }
   });
@@ -281,10 +280,10 @@ router.post('/users/:id/notify', async (req: Request, res: Response): Promise<vo
       });
     }
 
-    if (sendTelegram && user.telegram_id) {
+    if (sendTelegram && user.telegram_chat_id) {
       const tgMsg = `<b>${title}</b>\n\n${message}`;
-      await sendDirectMessage(user.telegram_id, tgMsg);
-    } else if (sendTelegram && !user.telegram_id) {
+      await sendDirectMessage(user.telegram_chat_id, tgMsg);
+    } else if (sendTelegram && !user.telegram_chat_id) {
       // If we don't have their ID, we can't send a DM. 
       // This is a good place to log or return a warning.
     }
@@ -311,7 +310,6 @@ router.get('/matches', async (req: Request, res: Response): Promise<void> => {
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true } },
       opponent: { select: { id: true, username: true, mlbb_ign: true } },
-      room: true,
     },
     orderBy: { created_at: 'desc' },
     take: 100,
@@ -319,13 +317,26 @@ router.get('/matches', async (req: Request, res: Response): Promise<void> => {
   res.json({ success: true, data: matches });
 });
 
+// GET /admin/matches/:id/messages — get battle room messages for a match
+router.get('/matches/:id/messages', async (req: Request, res: Response): Promise<void> => {
+  const matchId = req.params.id as string;
+  const messages = await prisma.battleMessage.findMany({
+    where: { match_id: matchId },
+    include: {
+      sender: { select: { id: true, username: true, mlbb_ign: true, avatar_url: true } }
+    },
+    orderBy: { created_at: 'asc' },
+    take: 500
+  });
+  res.json({ success: true, data: messages });
+});
+
 // POST /admin/matches/:id/void — Void match and refund players
 router.post('/matches/:id/void', async (req: Request, res: Response): Promise<void> => {
   try {
     const matchId = req.params.id as string;
     const match = await prisma.match.findUnique({
-      where: { id: matchId },
-      include: { room: true }
+      where: { id: matchId }
     });
 
     if (!match) {
@@ -379,20 +390,10 @@ router.post('/matches/:id/void', async (req: Request, res: Response): Promise<vo
         await tx.notification.create({ data: { user_id: match.opponent_id, title: 'Match Voided ↩️', message: 'Admin has voided your match. Your stake has been refunded to your balance.' } });
       }
 
-      // Free Room
-      if (match.room_id) {
-        await tx.telegramRoom.update({
-          where: { id: match.room_id },
-          data: { status: 'AVAILABLE', current_match_id: null }
-        });
-      }
+      // No room freeing needed with new logic
     });
 
-    // Cleanup Telegram Room
-    if (match.room?.chat_id) {
-      kickAndWipeRoom(match.room.chat_id, matchId).catch(e => console.error('[ADMIN] Void room cleanup fail:', e));
-    }
-
+    // Manual room cleanup could be added here if needed by fetching room separately
     res.json({ success: true, message: 'Match voided and players refunded' });
   } catch (error) {
     console.error('[ADMIN] Void match error:', error);
@@ -465,14 +466,14 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       // Release winner payout
       await tx.wallet.update({
         where: { user_id: winner_id },
-        data: { balance: { increment: winnerPayout }, frozen_amount: { decrement: stakeAmount }, total_won: { increment: winnerPayout } },
+        data: { balance: { increment: winnerPayout }, frozen_amount: { decrement: stakeAmount } },
       });
 
       // Release loser's frozen amount (they lose it)
       if (loserId) {
         await tx.wallet.update({
           where: { user_id: loserId },
-          data: { frozen_amount: { decrement: stakeAmount }, total_lost: { increment: stakeAmount } },
+          data: { frozen_amount: { decrement: stakeAmount } },
         });
       }
 
@@ -599,22 +600,10 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       }
     }
 
-    // Free the room
-    if (match.room_id) {
-      await tx.telegramRoom.update({ where: { id: match.room_id }, data: { status: 'AVAILABLE', current_match_id: null } });
-    }
+    // No room freeing needed
   });
 
-  // Kick players and clean the Telegram room
-  if (match.room_id) {
-    const room = await prisma.telegramRoom.findUnique({ where: { id: match.room_id } });
-    if (room?.chat_id) {
-      // Run async — don't block the API response
-      kickAndWipeRoom(room.chat_id, match.id).catch(err => {
-        console.error('[ADMIN] Failed to clean room after dispute resolve:', err);
-      });
-    }
-  }
+  // Room cleanup logic removed as per new static room architecture.
 
   // Notify WebSocket Battle Room
   try {
@@ -628,8 +617,8 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       if (updatedMatch.status === 'VOIDED') {
          systemMessage = `⚠️ The match was VOIDED by an admin.`;
       } else if (winner_id) {
-         const winnerUsername = winner_id === match.challenger_id ? match.challenger.username : match.opponent?.username;
-         systemMessage = `🏆 Dispute resolved! Admin awarded the victory to ${winnerUsername}.`;
+         const winnerIGN = winner_id === match.challenger_id ? match.challenger.mlbb_ign : match.opponent?.mlbb_ign;
+         systemMessage = `🏆 Dispute resolved! Admin awarded the victory to ${winnerIGN || 'Unknown'}.`;
       }
       
       const sysMsg = await prisma.battleMessage.create({
@@ -644,18 +633,16 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
   res.json({ success: true, message: 'Dispute resolved' });
 });
 
-// GET /admin/rooms
-router.get('/rooms', async (req: Request, res: Response): Promise<void> => {
-  const { status } = req.query;
-  const where = status && status !== 'All' ? { status: status as string } : {};
-  const rooms = await prisma.telegramRoom.findMany({ where, orderBy: { created_at: 'asc' } });
+// GET /admin/groups
+router.get('/groups', async (req: Request, res: Response): Promise<void> => {
+  const rooms = await prisma.telegramGroup.findMany({ orderBy: { created_at: 'asc' } });
   res.json({ success: true, data: rooms });
 });
 
-// GET /admin/rooms/:id
-router.get('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
+// GET /admin/groups/:id
+router.get('/groups/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const room = await prisma.telegramRoom.findUnique({ where: { id: req.params.id as string } });
+    const room = await prisma.telegramGroup.findUnique({ where: { id: req.params.id as string } });
     if (!room) {
       res.status(404).json({ success: false, error: 'Room not found' });
       return;
@@ -666,17 +653,17 @@ router.get('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /admin/rooms
+// POST /admin/groups
 const createRoomSchema = z.object({
   chat_id: z.string().min(1),
   title: z.string().min(1),
   invite_link: z.string().url(),
 });
-router.post('/rooms', async (req: Request, res: Response): Promise<void> => {
+router.post('/groups', async (req: Request, res: Response): Promise<void> => {
   try {
     const data = createRoomSchema.parse(req.body);
-    const room = await prisma.telegramRoom.create({
-      data: { ...data, status: 'AVAILABLE' }
+    const room = await prisma.telegramGroup.create({
+      data: { ...data }
     });
     res.json({ success: true, data: room });
   } catch (error) {
@@ -684,19 +671,19 @@ router.post('/rooms', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// PUT /admin/rooms/:id
-router.put('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
+// PUT /admin/groups/:id
+router.put('/groups/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const roomId = req.params.id as string;
     const { title, chat_id, invite_link } = req.body;
 
-    const room = await prisma.telegramRoom.findUnique({ where: { id: roomId } });
+    const room = await prisma.telegramGroup.findUnique({ where: { id: roomId } });
     if (!room) {
       res.status(404).json({ success: false, error: 'Room not found' });
       return;
     }
 
-    const updated = await prisma.telegramRoom.update({
+    const updated = await prisma.telegramGroup.update({
       where: { id: roomId },
       data: {
         title: title !== undefined ? title : room.title,
@@ -711,43 +698,15 @@ router.put('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// PATCH /admin/rooms/:id/status
-router.patch('/rooms/:id/status', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { status } = req.body;
-    if (!['AVAILABLE', 'PAUSED'].includes(status)) {
-      res.status(400).json({ success: false, error: 'Invalid status' });
-      return;
-    }
-    const roomId = req.params.id as string;
-    const room = await prisma.telegramRoom.findUnique({ where: { id: roomId } });
-    if (!room) {
-      res.status(404).json({ success: false, error: 'Room not found' });
-      return;
-    }
-    if (room.status === 'OCCUPIED') {
-      res.status(400).json({ success: false, error: 'Cannot change status of an occupied room' });
-      return;
-    }
-    const updated = await prisma.telegramRoom.update({
-      where: { id: roomId },
-      data: { status }
-    });
-    res.json({ success: true, data: updated });
-  } catch {
-    res.status(500).json({ success: false, error: 'Failed to update room status' });
-  }
-});
-
-// GET /admin/rooms/:id/matches — list matches for a specific room
-router.get('/rooms/:id/matches', async (req: Request, res: Response): Promise<void> => {
+// GET /admin/groups/:id/matches — list matches for a specific room
+router.get('/groups/:id/matches', async (req: Request, res: Response): Promise<void> => {
   try {
     const roomId = req.params.id as string;
     const matches = await prisma.match.findMany({
       where: { room_id: roomId },
       include: {
-        challenger: { select: { username: true } },
-        opponent: { select: { username: true } },
+        challenger: { select: { username: true, mlbb_ign: true } },
+        opponent: { select: { username: true, mlbb_ign: true } },
       },
       orderBy: { created_at: 'desc' },
       take: 50,
@@ -758,21 +717,85 @@ router.get('/rooms/:id/matches', async (req: Request, res: Response): Promise<vo
   }
 });
 
-// DELETE /admin/rooms/:id — delete a room
-router.delete('/rooms/:id', async (req: Request, res: Response): Promise<void> => {
+// GET /admin/groups/:id/messages — list messages for a specific room
+router.get('/groups/:id/messages', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const groupId = req.params.id as string;
+    const messages = await prisma.telegramGroupMessage.findMany({
+      where: { group_id: groupId },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    console.error('[ADMIN] Fetch group messages error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch group messages' });
+  }
+});
+
+// POST /admin/groups/:id/messages — send a custom message to a group
+router.post('/groups/:id/messages', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const groupId = req.params.id as string;
+    const { message, image } = req.body; // image should be a base64 string if present
+    
+    if (!message) {
+      res.status(400).json({ success: false, error: 'Message is required' });
+      return;
+    }
+
+    const group = await prisma.telegramGroup.findUnique({ where: { id: groupId } });
+    if (!group) {
+      res.status(404).json({ success: false, error: 'Group not found' });
+      return;
+    }
+
+    // Determine the sender's name
+    let senderName = 'Admin';
+    if (req.admin && req.admin.adminId) {
+      const admin = await prisma.admin.findUnique({ where: { id: req.admin.adminId } });
+      if (admin) senderName = admin.email.split('@')[0];
+    }
+
+    // Process image buffer if provided
+    let imageBuffer: Buffer | undefined;
+    let dbMessage = message;
+    if (image) {
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+      dbMessage = `[Image] ${message}`;
+    }
+
+    // Try to send via Bot
+    const { sendGroupMessage } = await import('../services/bot');
+    const sent = await sendGroupMessage(group.chat_id, message, imageBuffer);
+    
+    if (!sent) {
+      res.status(500).json({ success: false, error: 'Failed to send message to Telegram group' });
+      return;
+    }
+
+    const record = await prisma.telegramGroupMessage.create({
+      data: {
+        group_id: groupId,
+        message: dbMessage,
+        sent_by: senderName
+      }
+    });
+
+    res.json({ success: true, data: record });
+  } catch (error) {
+    console.error('[ADMIN] Send group message error:', error);
+    res.status(500).json({ success: false, error: 'Failed to send group message' });
+  }
+});
+
+// DELETE /admin/groups/:id — delete a room
+router.delete('/groups/:id', async (req: Request, res: Response): Promise<void> => {
   const roomId = req.params.id as string;
   try {
-    const room = await prisma.telegramRoom.findUnique({ where: { id: roomId } });
-    if (!room) {
-      res.status(404).json({ success: false, error: 'Room not found' });
-      return;
-    }
-    if (room.status === 'OCCUPIED') {
-      res.status(400).json({ success: false, error: 'Cannot delete an occupied room. Wait for the match to complete or release the room first.' });
-      return;
-    }
-    await prisma.telegramRoom.delete({ where: { id: roomId } });
-    res.json({ success: true, message: `Room "${room.title}" deleted successfully` });
+    await prisma.telegramGroup.delete({ where: { id: roomId } });
+    res.json({ success: true, message: `Group deleted successfully` });
   } catch (error) {
     console.error('[ADMIN] Delete room error:', error);
     res.status(500).json({ success: false, error: 'Failed to delete room' });
@@ -782,7 +805,7 @@ router.delete('/rooms/:id', async (req: Request, res: Response): Promise<void> =
 // GET /admin/transactions
 router.get('/transactions', async (_req: Request, res: Response): Promise<void> => {
   const transactions = await prisma.transaction.findMany({
-    include: { user: { select: { username: true } } },
+    include: { user: { select: { username: true, mlbb_ign: true } } },
     orderBy: { created_at: 'desc' },
     take: 100,
   });

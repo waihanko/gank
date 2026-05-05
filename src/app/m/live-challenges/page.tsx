@@ -20,7 +20,7 @@ interface Match {
 
 function AvatarBox({ user, size = 40 }: { user: any; size?: number }) {
   const [err, setErr] = useState(false);
-  const name = user?.telegram_display_name || user?.username || 'U';
+  const name = user?.mlbb_ign || user?.telegram_display_name || user?.username || 'U';
   const initial = name.replace('@', '').charAt(0).toUpperCase();
   return (
     <div style={{
@@ -155,7 +155,7 @@ export default function MobileLiveChallengesPage() {
                       <AvatarBox user={c} size={44} />
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
-                          {displayName}
+                          {c?.mlbb_ign || c?.telegram_display_name || c?.username || '?'}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                           {c?.mlbb_ign || '—'} • {getWinRate(c?.wins || 0, c?.losses || 0)} WR

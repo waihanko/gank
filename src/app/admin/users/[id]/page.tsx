@@ -15,7 +15,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   // Modals
   const [showNotify, setShowNotify] = useState(false);
-  const [notifyTitle, setNotifyTitle] = useState('Important Message');
   const [notifyMessage, setNotifyMessage] = useState('');
 
   const [showBan, setShowBan] = useState(false);
@@ -35,6 +34,13 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         fetch(`${API_URL}/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_URL}/api/admin/users/${id}/matches`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
+
+      if (uRes.status === 401 || uRes.status === 403 || mRes.status === 401 || mRes.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
+
       const uData = await uRes.json();
       const mData = await mRes.json();
 
@@ -42,6 +48,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       if (mData.success) setMatches(mData.data);
     } catch (e) {
       console.error(e);
+      window.location.href = '/admin/error?message=The specified user profile could not be retrieved. Please check your network connection.';
     } finally {
       setLoading(false);
     }
@@ -49,7 +56,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   async function handleNotify(e: React.FormEvent) {
     e.preventDefault();
-    if (!notifyTitle || !notifyMessage) return alert('Title and message required');
+    if (!notifyMessage) return alert('Message is required');
 
     const token = localStorage.getItem('gr_admin_token');
     try {
@@ -60,7 +67,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          title: notifyTitle,
+          title: 'System Message',
           message: notifyMessage,
           sendNotification,
           sendTelegram
@@ -115,11 +122,11 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
             <img
-              src={user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.username}
+              src={user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (user.mlbb_ign || user.username)}
               style={{ width: 80, height: 80, borderRadius: 20, border: '2px solid var(--accent-primary)', objectFit: 'cover' }}
             />
             <div>
-              <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 4 }}>{user.username}</h1>
+              <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 4 }}>{user.mlbb_ign || user.username}</h1>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>UID: {user.id.substring(0, 8)}</span>
                 {user.is_banned && (
@@ -212,8 +219,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         <td style={{ padding: '16px 12px' }}>
                           {opponent ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <img src={opponent.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + opponent.username} style={{ width: 24, height: 24, borderRadius: 6 }} />
-                              <span style={{ fontSize: 14, fontWeight: 600 }}>{opponent.username}</span>
+                              <img src={opponent.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (opponent.mlbb_ign || opponent.username)} style={{ width: 24, height: 24, borderRadius: 6 }} />
+                              <span style={{ fontSize: 14, fontWeight: 600 }}>{opponent.mlbb_ign || opponent.username}</span>
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>—</span>
@@ -285,18 +292,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>Send Notify</h3>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>Send a direct system notification to this player.</p>
             <form onSubmit={handleNotify}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Subject</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={notifyTitle}
-                  onChange={e => setNotifyTitle(e.target.value)}
-                  required
-                />
-              </div>
               <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Payload Message</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Message</label>
                 <textarea
                   className="input-field"
                   value={notifyMessage}
@@ -321,11 +318,11 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                     type="checkbox"
                     checked={sendTelegram}
                     onChange={e => setSendTelegram(e.target.checked)}
-                    disabled={!user.telegram_id}
+                    disabled={!user.telegram_chat_id}
                     style={{ accentColor: 'var(--accent-primary)' }}
                   />
-                  <span style={{ color: user.telegram_id ? 'inherit' : 'var(--text-muted)' }}>
-                    Telegram Alert {!user.telegram_id && '(No ID)'}
+                  <span style={{ color: user.telegram_chat_id ? 'inherit' : 'var(--text-muted)' }}>
+                    Telegram Alert {!user.telegram_chat_id && '(No ID)'}
                   </span>
                 </label>
               </div>

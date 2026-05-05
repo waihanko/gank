@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-function UserAvatar({ src, name, telegramName, telegramDisplayName, size, borderRadius }: { src?: string, name: string, telegramName?: string, telegramDisplayName?: string, size: number, borderRadius: number }) {
+function UserAvatar({ src, name, mlbb_ign, telegramName, telegramDisplayName, size, borderRadius }: { src?: string, name: string, mlbb_ign?: string, telegramName?: string, telegramDisplayName?: string, size: number, borderRadius: number }) {
   const [error, setError] = useState(false);
 
   if (src && !error) {
@@ -21,7 +21,7 @@ function UserAvatar({ src, name, telegramName, telegramDisplayName, size, border
     );
   }
 
-  const initial = (telegramDisplayName || telegramName || name || 'U').replace('@', '').trim().charAt(0).toUpperCase();
+  const initial = (mlbb_ign || telegramDisplayName || telegramName || name || 'U').replace('@', '').trim().charAt(0).toUpperCase();
   return <span>{initial}</span>;
 }
 
@@ -118,7 +118,7 @@ export default function LeaderboardPage() {
                     overflow: 'hidden'
                   }}
                 >
-                  <UserAvatar src={player.avatar_url} name={player.username} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={size} borderRadius={20} />
+                  <UserAvatar src={player.avatar_url} name={player.username} mlbb_ign={player.mlbb_ign} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={size} borderRadius={20} />
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{player.username}</div>
                 <div style={{ fontSize: 13, color: 'var(--accent-secondary)', marginBottom: 4 }}>{player.mlbb_ign}</div>
@@ -178,7 +178,7 @@ export default function LeaderboardPage() {
                           overflow: 'hidden'
                         }}
                       >
-                        <UserAvatar src={player.avatar_url} name={player.username} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={32} borderRadius={8} />
+                        <UserAvatar src={player.avatar_url} name={player.username} mlbb_ign={player.mlbb_ign} telegramName={player.telegram_username} telegramDisplayName={player.telegram_display_name} size={32} borderRadius={8} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{player.username}</div>

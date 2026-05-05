@@ -578,6 +578,9 @@ input, textarea {
     padding: 10px 20px;
     font-size: 13px;
   }
+  .desktop-only {
+    display: none !important;
+  }
 }
 
 main:has(.mobile-battle-room) #mobile-bottom-spacer {

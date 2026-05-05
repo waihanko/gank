@@ -33,12 +33,17 @@ export default function AdminUsersPage() {
       if (data.success) setUsers(data.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      window.location.href = '/admin/error?message=The user directory could not be reached. Please check your network connection.';
     }
     setLoading(false);
   }
 
   const filtered = users.filter((u) => {
-    const matchesSearch = search === '' || u.username.toLowerCase().includes(search.toLowerCase()) || (u.email && u.email.toLowerCase().includes(search.toLowerCase())) || (u.telegram_username && u.telegram_username.includes(search));
+    const matchesSearch = search === '' || 
+      u.mlbb_ign?.toLowerCase().includes(search.toLowerCase()) || 
+      (u.username && u.username.toLowerCase().includes(search.toLowerCase())) ||
+      (u.email && u.email.toLowerCase().includes(search.toLowerCase())) || 
+      (u.telegram_username && u.telegram_username.includes(search));
     const matchesBanned = showBanned ? u.is_banned : true;
     return matchesSearch && matchesBanned;
   });
@@ -108,11 +113,11 @@ export default function AdminUsersPage() {
                       fontWeight: 700,
                     }}
                   >
-                    {user.is_banned ? '🚫' : user.username.charAt(0)}
+                    {user.is_banned ? '🚫' : (user.mlbb_ign?.charAt(0) || user.username.charAt(0))}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15, color: user.is_banned ? 'var(--neon-red)' : 'var(--text-primary)' }}>
-                      {user.username}
+                      {user.mlbb_ign || user.username}
                     </div>
                     {user.email && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user.email}</div>}
                   </div>

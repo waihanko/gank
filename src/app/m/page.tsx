@@ -52,6 +52,7 @@ export default function MobileHomePage() {
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [myMatches, setMyMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats>({ totalMatches: 0, totalUsers: 0, totalPrizePool: 0 });
+  const [liveCount, setLiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [stakeInput, setStakeInput] = useState('');
@@ -94,11 +95,11 @@ export default function MobileHomePage() {
         : Promise.resolve({ success: false }),
     ]);
     // Only show ACTIVE matches with no opponent yet (truly joinable), exclude own challenges
-    if (liveRes.success) setLiveMatches(
-      liveRes.data
-        .filter((m: any) => m.status === 'ACTIVE' && !m.opponent_id)
-        .slice(0, 6)
-    );
+    if (liveRes.success) {
+      const active = liveRes.data.filter((m: any) => m.status === 'ACTIVE' && !m.opponent_id);
+      setLiveCount(active.length);
+      setLiveMatches(active.slice(0, 6));
+    }
     if (statsRes.success) setStats(statsRes.data);
     if (myRes.success) setMyMatches(myRes.data);
     setLoading(false);
@@ -167,9 +168,9 @@ export default function MobileHomePage() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '16px 0 20px' }}>
         {[
-          { value: stats.totalMatches > 0 ? `${stats.totalMatches}` : '—', label: 'Matches' },
+          { value: liveCount > 0 ? `${liveCount}` : '0', label: 'Lives' },
           { value: stats.totalUsers > 0 ? `${stats.totalUsers}` : '—', label: 'Players' },
-          { value: '5%', label: 'Platform Fee' },
+          { value: stats.totalPrizePool > 0 ? `${(stats.totalPrizePool / 1000).toFixed(0)}K+` : '—', label: 'Total Prize' },
         ].map(s => (
           <div key={s.label} style={{
             background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
@@ -353,7 +354,7 @@ export default function MobileHomePage() {
                   boxShadow: '0 4px 14px rgba(0,136,204,0.3)',
                 }}
               >
-                📱 Open Telegram
+                📱 Open Battle Room
               </button>
             )}
 

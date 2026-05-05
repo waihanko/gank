@@ -57,12 +57,16 @@ export default function AdminMatchesPage() {
       }
     } catch (error) {
       console.error('Failed to fetch matches:', error);
+      window.location.href = '/admin/error?message=The match registry could not be reached. Please check your network connection.';
     }
     setLoading(false);
   }
 
   const filtered = matches.filter((m) => {
-    const matchesSearch = search === '' || m.id.includes(search) || m.challenger?.username?.toLowerCase().includes(search.toLowerCase()) || m.opponent?.username?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = search === '' || 
+      m.id.includes(search) || 
+      m.challenger?.mlbb_ign?.toLowerCase().includes(search.toLowerCase()) || 
+      m.opponent?.mlbb_ign?.toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
   });
 
@@ -81,7 +85,7 @@ export default function AdminMatchesPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           className="input-field"
-          placeholder="🔍 Search by ID, username..."
+          placeholder="🔍 Search by ID, IGN..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ maxWidth: 300 }}
@@ -168,26 +172,22 @@ export default function AdminMatchesPage() {
                   </td>
                   <td>
                     <div style={{ 
-                      fontWeight: 600, 
-                      fontSize: 13, 
+                      fontWeight: 700, 
+                      fontSize: 14, 
                       color: match.winner_id === match.challenger_id ? 'var(--neon-yellow)' : 'var(--text-primary)' 
                     }}>
-                      {match.winner_id === match.challenger_id && '🏆 '}{match.challenger?.username}
+                      {match.winner_id === match.challenger_id && '🏆 '}{match.challenger?.mlbb_ign || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{match.challenger?.mlbb_ign}</div>
                   </td>
                   <td>
                     {match.opponent ? (
-                      <>
-                        <div style={{ 
-                          fontWeight: 600, 
-                          fontSize: 13, 
-                          color: match.winner_id === match.opponent_id ? 'var(--neon-yellow)' : 'var(--text-primary)' 
-                        }}>
-                          {match.winner_id === match.opponent_id && '🏆 '}{match.opponent?.username}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{match.opponent?.mlbb_ign}</div>
-                      </>
+                      <div style={{ 
+                        fontWeight: 700, 
+                        fontSize: 14, 
+                        color: match.winner_id === match.opponent_id ? 'var(--neon-yellow)' : 'var(--text-primary)' 
+                      }}>
+                        {match.winner_id === match.opponent_id && '🏆 '}{match.opponent?.mlbb_ign || 'Unknown'}
+                      </div>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>—</span>
                     )}

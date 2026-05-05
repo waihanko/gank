@@ -14,6 +14,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
   const { showAlert, showConfirm } = useDialog();
 
   const [match, setMatch] = useState<any>(null);
+  const [group, setGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,15 +24,35 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
   async function fetchMatch() {
     const token = localStorage.getItem('gr_admin_token');
     try {
-      // Fetch all matches and find the one with the ID (since there is no direct single fetch yet)
       const res = await fetch(`${API_URL}/api/admin/matches`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         const found = data.data.find((m: any) => m.id === id);
-        if (found) setMatch(found);
+        if (found) {
+          setMatch(found);
+          if (found.group_id) {
+            fetchGroup(found.group_id);
+          }
+        }
       }
-    } catch { }
+    } catch {
+      window.location.href = '/admin/error?message=This match record could not be retrieved from the central database.';
+    }
     setLoading(false);
+  }
+
+  async function fetchGroup(groupId: string) {
+    const token = localStorage.getItem('gr_admin_token');
+    try {
+      const res = await fetch(`${API_URL}/api/admin/groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setGroup(data.data);
+    } catch {}
   }
 
   async function handleVoid() {
@@ -81,12 +102,6 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
-              {(match.status === 'OPEN' || match.status === 'WAITING' || match.status === 'ACCEPTED') && (
-                <button className="btn-secondary" onClick={handleVoid}>Void Match</button>
-              )}
-              {match.status === 'DISPUTED' && (
-                <button className="btn-primary">Resolve Dispute</button>
-              )}
             </div>
           </div>
 
@@ -125,8 +140,8 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                   {match.challenger?.username?.charAt(0) || '❓'}
                 </div>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.challenger?.username || 'Unknown'}</div>
-                  <div style={{ fontSize: 14, color: 'var(--accent-primary)', fontWeight: 700 }}>{match.challenger?.mlbb_ign || '—'}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.challenger?.mlbb_ign || 'Unknown'}</div>
+                  <div style={{ fontSize: 14, color: 'var(--accent-primary)', fontWeight: 700 }}>ID: {match.challenger?.mlbb_server_id} ({match.challenger?.mlbb_zone_id})</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                     {getWinRate(match.challenger?.wins || 0, match.challenger?.losses || 0)} Win Rate
                   </div>
@@ -159,8 +174,8 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                 <div>
                   {match.opponent ? (
                     <>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.opponent.username}</div>
-                      <div style={{ fontSize: 14, color: 'var(--accent-secondary)', fontWeight: 700 }}>{match.opponent.mlbb_ign || '—'}</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.opponent.mlbb_ign}</div>
+                      <div style={{ fontSize: 14, color: 'var(--accent-secondary)', fontWeight: 700 }}>ID: {match.opponent.mlbb_server_id} ({match.opponent.mlbb_zone_id})</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                         {getWinRate(match.opponent.wins, match.opponent.losses)} Win Rate
                       </div>
@@ -188,7 +203,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                     boxShadow: match.opponent ? '0 8px 24px var(--accent-cyan-glow)' : 'none'
                   }}
                 >
-                  {match.opponent ? match.opponent.username.charAt(0) : '❓'}
+                  {match.opponent ? (match.opponent.mlbb_ign?.charAt(0) || match.opponent.username.charAt(0)) : '❓'}
                 </div>
               </div>
             </div>
@@ -238,34 +253,12 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
 
             {/* Admin Actions Strip */}
             <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-              {match.status === 'DISPUTED' && (
-                <button 
-                  className="btn-primary" 
-                  style={{ width: '100%', display: 'block', textAlign: 'center', padding: '18px', fontSize: 16, fontWeight: 700 }}
-                >
-                  Resolve Dispute Manually
-                </button>
-              )}
-              {!['COMPLETED', 'VOIDED', 'CANCELLED'].includes(match.status) && (
-                <button 
-                  className="btn-danger" 
-                  style={{ width: '100%', display: 'block', textAlign: 'center', padding: '18px', fontSize: 16, fontWeight: 700 }} 
-                  onClick={handleVoid}
-                >
-                  Void Match & Refund
-                </button>
-              )}
             </div>
           </div>
 
 
           {/* Details Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24, marginTop: 32 }}>
-            <div className="glass-card" style={{ padding: 24 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Telegram Battle Room</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent-primary)' }}>{match.room?.title || 'Not Assigned'}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{match.room?.chat_id || 'N/A'}</div>
-            </div>
             <div className="glass-card" style={{ padding: 24 }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>
                 {match.status === 'COMPLETED' ? 'Total Match Duration' : 'Time Since Created'}
@@ -285,6 +278,35 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
               <div style={{ fontSize: 13 }}>Created: {formatDate(match.created_at)}</div>
               {match.completed_at && <div style={{ fontSize: 13, color: 'var(--neon-green)' }}>Finished: {formatDate(match.completed_at)}</div>}
             </div>
+            <div className="glass-card" style={{ padding: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Telegram Battle Group</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: group ? 'var(--neon-green)' : 'var(--text-muted)' }}>
+                  {group ? group.title : match.group_id ? 'Loading Group...' : 'No Group Assigned'}
+                </div>
+                {group?.chat_id && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Chat ID: {group.chat_id}</div>}
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                {group?.invite_link && (
+                  <a 
+                    href={group.invite_link} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="btn-secondary btn-sm"
+                    style={{ width: 'auto', padding: '8px 16px', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+                  >
+                    Join Group
+                  </a>
+                )}
+                <button 
+                  className="btn-primary btn-sm" 
+                  style={{ width: 'auto', padding: '8px 24px' }}
+                  onClick={() => router.push(`/admin/matches/${match.id}/group`)}
+                >
+                  Check Log
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -295,7 +317,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
               <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
               <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>Match Result</h2>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--neon-green)' }}>
-                {match.winner_id === match.challenger_id ? match.challenger?.username : match.opponent?.username} Won!
+                {match.winner_id === match.challenger_id ? match.challenger?.mlbb_ign : match.opponent?.mlbb_ign} Won!
               </div>
               <div style={{ color: 'var(--text-muted)', marginTop: 8 }}>
                 Payout Released: {formatCurrency(match.total_pot - match.commission)}

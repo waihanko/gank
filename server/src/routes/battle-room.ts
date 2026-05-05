@@ -153,8 +153,14 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
   }
 
   const claimData: any = {};
-  if (isChallenger) claimData.challenger_claim = claim;
-  if (isOpponent) claimData.opponent_claim = claim;
+  if (isChallenger) {
+    claimData.challenger_claim = claim;
+    claimData.challenger_claim_at = new Date();
+  }
+  if (isOpponent) {
+    claimData.opponent_claim = claim;
+    claimData.opponent_claim_at = new Date();
+  }
 
   if (match.status === 'BATTLE') {
     claimData.status = 'SUBMISSION';
@@ -180,8 +186,8 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
 
   // Attempt to resolve match if both claims are in
   try {
-    const { resolveMatchClaims } = require('../services/bot');
-    await resolveMatchClaims(match.id, ''); // Empty chat ID since we are bypassing Telegram
+    const { resolveMatchClaims } = require('../services/match-resolution');
+    await resolveMatchClaims(match.id); 
     
     // Check if it got resolved
     const updatedMatch = await prisma.match.findUnique({ where: { id: match.id } });

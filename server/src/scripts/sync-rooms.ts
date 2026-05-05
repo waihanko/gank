@@ -3,23 +3,18 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function syncHostedCounts() {
-  console.log('🔄 Syncing hosted matches counts...');
-  const rooms = await prisma.telegramRoom.findMany();
+  console.log('🔄 Checking match counts per group...');
+  const groups = await prisma.telegramGroup.findMany();
   
-  for (const room of rooms) {
+  for (const group of groups) {
     const count = await prisma.match.count({
-      where: { room_id: room.id }
+      where: { room_id: group.id }
     });
     
-    await prisma.telegramRoom.update({
-      where: { id: room.id },
-      data: { total_matches_hosted: count }
-    });
-    
-    console.log(`✅ Room "${room.title}": ${count} matches`);
+    console.log(`✅ Group "${group.title}": ${count} matches total`);
   }
   
-  console.log('✨ Sync complete!');
+  console.log('✨ Check complete!');
 }
 
 syncHostedCounts()

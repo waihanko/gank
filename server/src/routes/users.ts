@@ -17,14 +17,13 @@ router.get('/leaderboard', async (req: express.Request, res: express.Response): 
         wins: true,
         losses: true,
         avatar_url: true,
+        mlbb_avatar_url: true,
         telegram_display_name: true,
         is_banned: true,
         created_at: true,
         wallet: {
           select: {
-            balance: true,
-            total_won: true,
-            total_lost: true
+            balance: true
           }
         }
       },
@@ -39,7 +38,10 @@ router.get('/leaderboard', async (req: express.Request, res: express.Response): 
 
     res.status(200).json({
       success: true,
-      data: users
+      data: users.map(u => ({
+        ...u,
+        avatar_url: u.mlbb_avatar_url || u.avatar_url
+      }))
     });
   } catch (error) {
     console.error('[USERS] Leaderboard error:', error);
@@ -76,7 +78,7 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
       }
       
       updates.telegram_username = telegram_username.startsWith('@') ? telegram_username : `@${telegram_username}`;
-      updates.telegram_id = null; // Clear ID so it can be re-linked
+      updates.telegram_chat_id = null; // Clear ID so it can be re-linked
       if (telegram_display_name !== undefined) updates.telegram_display_name = telegram_display_name;
       if (telegram_bio !== undefined) updates.telegram_bio = telegram_bio;
       if (telegram_profile_image !== undefined) updates.avatar_url = telegram_profile_image;
@@ -100,13 +102,44 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
         where: { id: userId },
         data: updates
       });
-      res.json({ success: true, data: updatedUser });
+      res.json({
+        success: true,
+        data: {
+          ...updatedUser,
+          avatar_url: updatedUser.mlbb_avatar_url || updatedUser.avatar_url
+        }
+      });
     } else {
-      res.json({ success: true, data: user });
+      res.json({
+        success: true,
+        data: {
+          ...user,
+          avatar_url: user.mlbb_avatar_url || user.avatar_url
+        }
+      });
     }
   } catch (error) {
     console.error('[USERS] Profile update error:', error);
     res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
+});
+
+// Get official Telegram Group link
+router.get('/telegram-group', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const group = await prisma.telegramGroup.findFirst({
+      orderBy: { created_at: 'asc' }
+    });
+    
+    if (!group) {
+      res.status(404).json({ success: false, error: 'No Telegram group configured' });
+      return;
+    }
+    
+    res.json({ success: true, data: { invite_link: group.invite_link } });
+  } catch (error) {
+    console.error('[USERS] Fetch Telegram group error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch Telegram group' });
   }
 });
 

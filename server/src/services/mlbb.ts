@@ -1,83 +1,114 @@
-// MLBB ID Verification Service
-// Uses synnmlbb.com's ML Checker API (with session + CSRF handling)
+// MLBB Official API Service
+// Replaces the old synnmlbb.com scraper with official Moonton APIs
 
-export interface MLBBAccount {
-  username: string;
-  region: string;
-  found: boolean;
+const COMMON_HEADERS = {
+  "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+  "Origin": "https://www.mobilelegends.com",
+  "Referer": "https://www.mobilelegends.com/",
+  "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+};
+
+export async function sendVc(roleId: string, zoneId: string): Promise<boolean> {
+  try {
+    const res = await fetch("https://sg-api.mobilelegends.com/base/sendVc", {
+      method: "POST",
+      headers: COMMON_HEADERS,
+      body: new URLSearchParams({
+        roleId,
+        zoneId
+      }).toString()
+    });
+    
+    const data = await res.json() as any;
+    if (data.code === 0) {
+      return true;
+    }
+    
+    console.warn('[MLBB] sendVc failed:', data);
+    return false;
+  } catch (error) {
+    console.error('[MLBB] sendVc error:', error);
+    return false;
+  }
 }
 
-export async function verifyMLBBAccount(userId: string, zoneId: string): Promise<MLBBAccount> {
+export interface MLBBLoginResult {
+  success: boolean;
+  jwt?: string;
+  roleId?: string;
+  zoneId?: string;
+  error?: string;
+}
+
+export async function loginWithVc(roleId: string, zoneId: string, vc: string): Promise<MLBBLoginResult> {
   try {
-    // Step 1: Get CSRF token and session cookies from the checker page
-    const pageRes = await fetch('https://www.synnmlbb.com/ml-checker', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-    });
-
-    const html = await pageRes.text();
-    const cookies = pageRes.headers.getSetCookie?.() || [];
-
-    // Extract CSRF token from HTML meta tag or hidden input
-    const tokenMatch = html.match(/meta\s+name="csrf-token"\s+content="([^"]+)"/)
-      || html.match(/_token.*?value="([^"]+)"/)
-      || html.match(/csrf[_-]token['":\s]+['"]([^'"]+)/i);
-
-    if (!tokenMatch) {
-      console.error('[MLBB] Could not extract CSRF token');
-      return { username: '', region: '', found: false };
-    }
-
-    const csrfToken = tokenMatch[1];
-
-    // Build cookie string
-    const cookieStr = cookies.map((c: string) => c.split(';')[0]).join('; ');
-
-    // Also extract XSRF-TOKEN from cookies for the header
-    const xsrfMatch = cookieStr.match(/XSRF-TOKEN=([^;]+)/);
-    const xsrfToken = xsrfMatch ? decodeURIComponent(xsrfMatch[1]) : '';
-
-    // Step 2: Call the ML check API
-    const checkRes = await fetch('https://www.synnmlbb.com/ml-check', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Referer': 'https://www.synnmlbb.com/ml-checker',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Cookie': cookieStr,
-        ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
-      },
+    const res = await fetch("https://sg-api.mobilelegends.com/base/login", {
+      method: "POST",
+      headers: COMMON_HEADERS,
       body: new URLSearchParams({
-        '_token': csrfToken,
-        'data[zone_id]': zoneId,
-        'data[user_id]': userId,
-        'data[ip_address]': '127.0.0.1',
-      }).toString(),
+        roleId,
+        zoneId,
+        vc,
+        referer: "academy",
+        type: "web"
+      }).toString()
     });
-
-    const data = await checkRes.json() as {
-      success: boolean;
-      data?: {
-        nickname?: string;
-        account_created_from?: string;
-        account_login_from?: string;
-      };
-    };
-
-    if (data.success && data.data?.nickname) {
+    
+    const data = await res.json() as any;
+    if (data.code === 0 && data.data?.jwt) {
       return {
-        username: data.data.nickname,
-        region: data.data.account_created_from || data.data.account_login_from || 'Unknown',
-        found: true,
+        success: true,
+        jwt: data.data.jwt,
+        roleId: data.data.roleid?.toString(),
+        zoneId: data.data.zoneid?.toString(),
       };
     }
-
-    return { username: '', region: '', found: false };
+    
+    return { success: false, error: data.msg || 'Invalid verification code' };
   } catch (error) {
-    console.error('[MLBB] Verification error:', error);
-    return { username: '', region: '', found: false };
+    console.error('[MLBB] loginWithVc error:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+export interface MLBBProfile {
+  success: boolean;
+  name?: string;
+  avatar?: string;
+  level?: number;
+  rank_level?: number;
+  reg_country?: string;
+  error?: string;
+}
+
+export async function getBaseInfo(jwt: string): Promise<MLBBProfile> {
+  try {
+    const res = await fetch("https://sg-api.mobilelegends.com/base/getBaseInfo", {
+      method: "POST",
+      headers: {
+        ...COMMON_HEADERS,
+        "authorization": jwt,
+        "x-token": jwt,
+        "x-actid": "2728785",
+        "x-appid": "2713644"
+      }
+    });
+    
+    const data = await res.json() as any;
+    if (data.code === 0 && data.data) {
+      return {
+        success: true,
+        name: data.data.name,
+        avatar: data.data.avatar,
+        level: data.data.level,
+        rank_level: data.data.rank_level,
+        reg_country: data.data.reg_country
+      };
+    }
+    
+    return { success: false, error: data.msg || 'Failed to get profile' };
+  } catch (error) {
+    console.error('[MLBB] getBaseInfo error:', error);
+    return { success: false, error: 'Network error' };
   }
 }

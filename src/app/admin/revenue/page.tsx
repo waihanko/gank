@@ -1,25 +1,43 @@
 'use client';
 
-import { mockMatches, mockDashboardStats } from '@/lib/mock-data';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function AdminRevenuePage() {
-  const completedMatches = mockMatches.filter((m) => m.status === 'COMPLETED');
-  const totalCommission = completedMatches.reduce((s, m) => s + m.commission, 0);
-  const avgCommission = completedMatches.length > 0 ? totalCommission / completedMatches.length : 0;
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Simulated daily revenue data
-  const dailyData = [
-    { day: 'Mon', revenue: 4200, matches: 8 },
-    { day: 'Tue', revenue: 3800, matches: 7 },
-    { day: 'Wed', revenue: 5100, matches: 10 },
-    { day: 'Thu', revenue: 4500, matches: 9 },
-    { day: 'Fri', revenue: 6200, matches: 12 },
-    { day: 'Sat', revenue: 8100, matches: 16 },
-    { day: 'Sun', revenue: 7300, matches: 14 },
-  ];
+  useEffect(() => {
+    fetchRevenue();
+  }, []);
 
-  const maxRevenue = Math.max(...dailyData.map((d) => d.revenue));
+  async function fetchRevenue() {
+    setLoading(true);
+    const token = localStorage.getItem('gr_admin_token');
+    try {
+      const res = await fetch(`${API_URL}/api/admin/revenue`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) {
+      console.error(e);
+      window.location.href = '/admin/error?message=The revenue analytics service is currently unavailable. Please check your network connection.';
+    }
+    setLoading(false);
+  }
+
+  if (loading) return <div className="page-container">Loading revenue data...</div>;
+
+  const items = data?.items || [];
+  const totalRevenue = data?.total || 0;
+  const avgCommission = items.length > 0 ? totalRevenue / items.length : 0;
+
 
   return (
     <div className="page-container">
@@ -37,73 +55,55 @@ export default function AdminRevenuePage() {
         <div className="stat-card">
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Total Revenue</div>
           <div className="font-display gradient-text" style={{ fontSize: 32, fontWeight: 800 }}>
-            {formatCurrency(mockDashboardStats.totalRevenue)}
+            {formatCurrency(totalRevenue)}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Lifetime earnings</div>
         </div>
 
         <div className="stat-card">
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Today&apos;s Revenue</div>
-          <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-green)' }}>
-            {formatCurrency(mockDashboardStats.todayRevenue)}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>From {mockDashboardStats.todayMatches} matches</div>
-        </div>
-
-        <div className="stat-card">
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Avg Per Match</div>
           <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-cyan)' }}>
-            {formatCurrency(Math.round(avgCommission || mockDashboardStats.totalRevenue / mockDashboardStats.totalMatches))}
+            {formatCurrency(Math.round(avgCommission))}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>5% commission rate</div>
         </div>
 
         <div className="stat-card">
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>This Week</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Transactions</div>
           <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-purple)' }}>
-            {formatCurrency(dailyData.reduce((s, d) => s + d.revenue, 0))}
+            {items.length}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{dailyData.reduce((s, d) => s + d.matches, 0)} matches</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Total commission entries</div>
         </div>
       </div>
 
-      {/* Weekly Chart */}
+      {/* Recent Revenue List */}
       <div className="glass-card" style={{ padding: 28, marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>📊 This Week&apos;s Revenue</h3>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 200 }}>
-          {dailyData.map((d) => {
-            const height = (d.revenue / maxRevenue) * 160;
-            return (
-              <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--neon-green)', fontWeight: 600 }}>
-                  {formatCurrency(d.revenue)}
-                </div>
-                <div
-                  style={{
-                    width: '100%',
-                    maxWidth: 60,
-                    height: height,
-                    borderRadius: '8px 8px 4px 4px',
-                    background: 'linear-gradient(180deg, var(--accent-primary), var(--accent-secondary))',
-                    transition: 'height 0.5s ease',
-                    position: 'relative',
-                    opacity: 0.85,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      borderRadius: 'inherit',
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.1), transparent)',
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{d.day}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{d.matches} games</div>
-              </div>
-            );
-          })}
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>💸 Recent Revenue Transactions</h3>
+        <div className="glass-card" style={{ overflow: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Match ID</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.slice(0, 20).map((item: any) => (
+                <tr key={item.id}>
+                  <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatDate(item.created_at)}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--neon-yellow)' }}>{item.match_id}</td>
+                  <td className="font-display" style={{ fontWeight: 800, color: 'var(--neon-green)', fontSize: 14 }}>
+                    {formatCurrency(item.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {items.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No revenue data yet</div>
+          )}
         </div>
       </div>
 

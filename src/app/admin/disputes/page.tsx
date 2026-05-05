@@ -182,7 +182,7 @@ export default function AdminDisputesPage() {
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 15 }}>
-                        {match.challenger?.username || '?'} vs {match.opponent?.username || '?'}
+                        {match.challenger?.mlbb_ign || '?'} <span style={{ color: 'var(--neon-yellow)', margin: '0 6px', fontSize: 13, fontStyle: 'italic', opacity: 0.8 }}>vs</span> {match.opponent?.mlbb_ign || '?'}
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{dispute.reason}</div>
                     </div>
@@ -215,8 +215,8 @@ export default function AdminDisputesPage() {
                       {/* Challenger */}
                       <div className="stat-card">
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Challenger</div>
-                        <div style={{ fontWeight: 700 }}>{match.challenger?.username}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{match.challenger?.mlbb_ign}</div>
+                        <div style={{ fontWeight: 700 }}>{match.challenger?.mlbb_ign}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {match.challenger?.mlbb_server_id}</div>
                         <div style={{ marginTop: 8 }}>
                           <span style={{
                             fontSize: 12,
@@ -249,8 +249,8 @@ export default function AdminDisputesPage() {
                       {/* Opponent */}
                       <div className="stat-card">
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Opponent</div>
-                        <div style={{ fontWeight: 700 }}>{match.opponent?.username || '—'}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{match.opponent?.mlbb_ign || '—'}</div>
+                        <div style={{ fontWeight: 700 }}>{match.opponent?.mlbb_ign || '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {match.opponent?.mlbb_server_id || '—'}</div>
                         <div style={{ marginTop: 8 }}>
                           <span style={{
                             fontSize: 12,
@@ -270,47 +270,63 @@ export default function AdminDisputesPage() {
                     {dispute.status === 'PENDING' && (
                       <div style={{ background: 'var(--bg-tertiary)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>🧑‍⚖️ Resolution Actions</div>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                          <button
-                            className="btn-success"
-                            disabled={resolving === dispute.id}
-                            onClick={() => handleResolve(dispute.id, match.challenger_id, `Awarded to ${match.challenger?.username}`)}
-                          >
-                            {resolving === dispute.id ? '...' : `🏆 Award to ${match.challenger?.username}`}
-                          </button>
-                          {match.opponent && (
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                             <button
                               className="btn-success"
                               disabled={resolving === dispute.id}
-                              onClick={() => handleResolve(dispute.id, match.opponent!.id, `Awarded to ${match.opponent!.username}`)}
+                              onClick={() => handleResolve(dispute.id, match.challenger_id, `Awarded to ${match.challenger?.mlbb_ign}`)}
                             >
-                              {resolving === dispute.id ? '...' : `🏆 Award to ${match.opponent?.username}`}
+                              {resolving === dispute.id ? '...' : `🏆 Award to ${match.challenger?.mlbb_ign}`}
                             </button>
-                          )}
-                          <button
+                            {match.opponent && (
+                              <button
+                                className="btn-success"
+                                disabled={resolving === dispute.id}
+                                onClick={() => handleResolve(dispute.id, match.opponent!.id, `Awarded to ${match.opponent!.mlbb_ign}`)}
+                              >
+                                {resolving === dispute.id ? '...' : `🏆 Award to ${match.opponent?.mlbb_ign}`}
+                              </button>
+                            )}
+                            <button
+                              className="btn-secondary"
+                              disabled={resolving === dispute.id}
+                              onClick={() => handleResolve(dispute.id, null, 'Voided and refunded both players')}
+                            >
+                              ↩️ Void &amp; Refund Both
+                            </button>
+                            <button
+                              disabled={resolving === dispute.id}
+                              onClick={() => handleResolve(dispute.id, null, 'Voided — stakes collected by platform', 'void_collect')}
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(239,68,68,0.2))',
+                                border: '1px solid rgba(234,179,8,0.4)',
+                                color: '#f59e0b',
+                                padding: '10px 20px',
+                                borderRadius: 10,
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: resolving === dispute.id ? 'not-allowed' : 'pointer',
+                                opacity: resolving === dispute.id ? 0.5 : 1,
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              {resolving === dispute.id ? '...' : '💰 Void & Collect'}
+                            </button>
+                          </div>
+                          
+                          <button 
                             className="btn-secondary"
-                            disabled={resolving === dispute.id}
-                            onClick={() => handleResolve(dispute.id, null, 'Voided and refunded both players')}
-                          >
-                            ↩️ Void &amp; Refund Both
-                          </button>
-                          <button
-                            disabled={resolving === dispute.id}
-                            onClick={() => handleResolve(dispute.id, null, 'Voided — stakes collected by platform', 'void_collect')}
-                            style={{
-                              background: 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(239,68,68,0.2))',
-                              border: '1px solid rgba(234,179,8,0.4)',
-                              color: '#f59e0b',
-                              padding: '10px 20px',
-                              borderRadius: 10,
-                              fontSize: 13,
+                            style={{ 
+                              padding: '10px 24px', 
+                              fontSize: 13, 
                               fontWeight: 700,
-                              cursor: resolving === dispute.id ? 'not-allowed' : 'pointer',
-                              opacity: resolving === dispute.id ? 0.5 : 1,
-                              transition: 'all 0.2s',
+                              borderColor: 'var(--neon-cyan)',
+                              color: 'var(--neon-cyan)'
                             }}
+                            onClick={() => window.open(`/admin/matches/${match.id}/room`, '_blank')}
                           >
-                            {resolving === dispute.id ? '...' : '💰 Void & Collect'}
+                            💬 Check Battle Room
                           </button>
                         </div>
                       </div>

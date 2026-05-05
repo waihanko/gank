@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from '../middleware/auth';
 import { COMMISSION_RATE, MIN_STAKE } from '../config/env';
 import { emitMatchUpdate } from '../services/socket';
-import { scheduleReadyCheckTimeout, schedulePendingJoinTimeout, cancelJob } from '../services/queue';
+import { scheduleReadyCheckTimeout, cancelJob } from '../services/queue';
 import crypto from 'crypto';
-import { generateInviteLink, kickUserFromRoom, kickAndWipeRoom, revokeInviteLinks } from '../services/bot';
+import { sendDirectMessage } from '../services/bot';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -48,7 +48,6 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
     take: 50,
@@ -102,7 +101,6 @@ router.get('/my-pending', authMiddleware, async (req: Request, res: Response): P
     where: { challenger_id: userId, status: 'PENDING_JOIN' },
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true } },
-      room: { select: { id: true, title: true } },
     },
   });
   res.json({ success: true, data: pendingMatch });
@@ -123,7 +121,6 @@ router.get('/my-recent', authMiddleware, async (req: Request, res: Response): Pr
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      room: { select: { id: true, title: true } },
     },
   });
   res.json({ success: true, data: recentMatches });
@@ -142,7 +139,6 @@ router.get('/my-history', authMiddleware, async (req: Request, res: Response): P
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      room: { select: { id: true, title: true } },
     },
     orderBy: { created_at: 'desc' },
     take: 100,
@@ -255,8 +251,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promi
   const userId = req.user!.userId;
 
   const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: { room: true },
+    where: { id: matchId }
   });
 
   if (!match) {
@@ -308,20 +303,8 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promi
     });
   }
 
-  // Recycle the room
-  if (match.room_id) {
-    await prisma.telegramRoom.update({
-      where: { id: match.room_id },
-      data: { status: 'AVAILABLE', current_match_id: null },
-    });
-    // Kick challenger and clean the Telegram room
-    if (match.room?.chat_id) {
-      await revokeInviteLinks(match.room.chat_id, [match.challenger_invite_link, match.opponent_invite_link]);
-      kickAndWipeRoom(match.room.chat_id, matchId).catch(err => {
-        console.error('[MATCHES] Failed to clean room after delete:', err);
-      });
-    }
-  }
+  // Room recycling logic removed.
+  // Manual cleanup could be done by ID if needed.
 
   // Cancel any pending timers
   try {
@@ -341,8 +324,7 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
   const opponentId = req.user!.userId;
 
   const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: { room: true },
+    where: { id: matchId }
   });
   if (!match || match.status !== 'ACTIVE') {
     res.status(400).json({ success: false, error: 'Match not available for acceptance' });
@@ -360,7 +342,6 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
   // AUTO-DELETE: If opponent owns an ACTIVE/PENDING_JOIN challenge, auto-delete it first
   const existingChallenge = await prisma.match.findFirst({
     where: { challenger_id: opponentId, status: { in: ['PENDING_JOIN', 'ACTIVE'] }, opponent_id: null },
-    include: { room: true },
   });
   if (existingChallenge) {
     const oldStake = Number(existingChallenge.stake_amount);
@@ -381,13 +362,7 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
         await tx.match.update({ where: { id: existingChallenge.id }, data: { status: 'CANCELLED' } });
       });
     }
-    // Recycle the old room
-    if (existingChallenge.room_id) {
-      await prisma.telegramRoom.update({
-        where: { id: existingChallenge.room_id },
-        data: { status: 'AVAILABLE', current_match_id: null },
-      });
-    }
+    // Room recycling logic removed.
     try { await cancelJob(`pending-join-${existingChallenge.id}`); } catch {}
     console.log(`[MATCHES] Auto-deleted challenge ${existingChallenge.id} for user ${opponentId}`);
   }
@@ -479,7 +454,6 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     include: {
       challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
       opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      room: true,
     },
   });
 

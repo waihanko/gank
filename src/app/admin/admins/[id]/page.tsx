@@ -36,6 +36,11 @@ export default function AdminDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`${API_URL}/api/admin/admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         const found = data.data.find((a: any) => a.id === id);
@@ -48,6 +53,7 @@ export default function AdminDetailPage({ params }: { params: Promise<{ id: stri
       }
     } catch (e) {
       console.error(e);
+      window.location.href = '/admin/error?message=The administrator access record is currently unavailable. Please verify your connection.';
     } finally {
       setLoading(false);
     }

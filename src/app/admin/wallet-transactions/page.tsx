@@ -26,6 +26,11 @@ export default function AdminWalletTransactionsPage() {
     const token = localStorage.getItem('gr_admin_token');
     try {
       const res = await fetch(`${API_URL}/api/admin/transactions`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         // Filter only wallet-related transactions
@@ -36,6 +41,7 @@ export default function AdminWalletTransactionsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch wallet transactions:', error);
+      window.location.href = '/admin/error?message=The wallet transaction registry could not be reached. Please check your network connection.';
     }
     setLoading(false);
   }

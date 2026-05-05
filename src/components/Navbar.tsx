@@ -253,7 +253,7 @@ export default function Navbar() {
                       fontSize: 18, fontWeight: 700, color: 'white', border: '2px solid var(--accent-primary)',
                     }}
                   >
-                    {(user?.telegram_display_name || user?.telegram_username?.replace('@', '') || user?.username || 'U').trim().charAt(0).toUpperCase()}
+                    {(user?.mlbb_ign || user?.telegram_display_name || user?.telegram_username?.replace('@', '') || user?.username || 'U').trim().charAt(0).toUpperCase()}
                   </div>
                 )}
               </button>
@@ -270,7 +270,7 @@ export default function Navbar() {
                   }}
                 >
                   <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-secondary)', marginBottom: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.username}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.mlbb_ign || user?.username}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user?.telegram_username}</div>
                   </div>
                   <Link href="/profile" className="btn-secondary" style={{ justifyContent: 'flex-start', padding: '8px 12px' }} onClick={() => setDropdownOpen(false)}>

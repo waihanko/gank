@@ -20,7 +20,12 @@ export default function MobileProfilePage() {
   const [zoneId, setZoneId] = useState('');
   const [mlbbIgn, setMlbbIgn] = useState('');
   const [tgUsername, setTgUsername] = useState('');
+  const [tgStep, setTgStep] = useState(1);
   const [tgProfile, setTgProfile] = useState<{ display_name: string; bio: string; type: string; profile_image: string } | null>(null);
+  const [tgGroupLink, setTgGroupLink] = useState('');
+  const [vc, setVc] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [mlbbProfile, setMlbbProfile] = useState<{ mlbb_ign: string; avatar_url: string; level: number; rank_level: number; reg_country: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !isLoggedIn) { window.location.href = '/login'; return; }
@@ -32,15 +37,30 @@ export default function MobileProfilePage() {
     }
   }, [token, isLoggedIn, loading]);
 
-  async function handleVerifyMlbb() {
+  async function handleSendVc() {
     setError(''); setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/verify-mlbb`, {
+      const res = await fetch(`${API_URL}/api/auth/send-vc`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ server_id: serverId, zone_id: zoneId }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error); return; }
+      setCodeSent(true);
+    } catch { setError('Failed to send code.'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleVerifyVc() {
+    setError(''); setSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/verify-vc`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server_id: serverId, zone_id: zoneId, vc }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error); return; }
+      setMlbbProfile(data.data);
       setMlbbIgn(data.data.mlbb_ign);
     } catch { setError('Failed to verify.'); }
     finally { setSaving(false); }
@@ -63,7 +83,7 @@ export default function MobileProfilePage() {
 
   async function handleVerifyTg() {
     setError(''); setSaving(true);
-    const uname = tgUsername.startsWith('@') ? tgUsername : `@${tgUsername}`;
+    const uname = tgUsername.trim().startsWith('@') ? tgUsername.trim() : `@${tgUsername.trim()}`;
     try {
       const res = await fetch(`${API_URL}/api/auth/verify-telegram`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -76,23 +96,48 @@ export default function MobileProfilePage() {
     finally { setSaving(false); }
   }
 
-  async function handleSaveTg() {
+  async function handleConfirmTgProfile() {
     setError(''); setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/users/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           telegram_username: tgUsername,
           telegram_display_name: tgProfile?.display_name,
           telegram_bio: tgProfile?.bio,
-          telegram_profile_image: tgProfile?.profile_image,
-        }),
+          telegram_profile_image: tgProfile?.profile_image
+        })
       });
       const data = await res.json();
-      if (data.success) { showAlert('Telegram updated!'); setEditTg(false); refreshUser(); setProfile(data.data); }
-      else setError(data.error || 'Failed.');
-    } catch { setError('Network error.'); }
+      if (!data.success) { setError(data.error || 'Failed to save profile.'); return; }
+
+      const linkRes = await fetch(`${API_URL}/api/users/telegram-group`);
+      const linkData = await linkRes.json();
+      if (linkData.success && linkData.data.invite_link) {
+        setTgGroupLink(linkData.data.invite_link);
+        setTgStep(2);
+      } else {
+        setError('Saved, but could not retrieve the official group link. Please contact support.');
+      }
+    } catch { setError('Network error while saving.'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleCheckStatus() {
+    setSaving(true);
+    try {
+      await refreshUser();
+      const res = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success && data.data.telegram_chat_id) {
+        showAlert('Telegram Successfully Connected!');
+        setProfile(data.data);
+        setEditTg(false);
+      } else {
+        setError("We couldn't detect your account. If you've already joined, please send a quick message in the group to verify, then click \"I've Joined\" again.");
+      }
+    } catch { setError('Network error while checking status.'); }
     finally { setSaving(false); }
   }
 
@@ -110,7 +155,7 @@ export default function MobileProfilePage() {
   const total = wins + losses;
   const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
   const wallet = p.wallet as Record<string, number> | null;
-  const displayName = (p.telegram_display_name as string) || (p.mlbb_ign as string) || (p.username as string) || 'Player';
+  const displayName = (p.mlbb_ign as string) || (p.telegram_display_name as string) || (p.username as string) || 'Player';
   const initial = displayName.replace('@', '').charAt(0).toUpperCase();
 
   return (
@@ -175,17 +220,14 @@ export default function MobileProfilePage() {
         <div style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: '16px', marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>💰 Wallet</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[
-              { label: 'Balance', value: `${Number(wallet.balance || 0).toLocaleString()} MMK`, color: 'var(--neon-green)' },
-              { label: 'Frozen', value: `${Number(wallet.frozen_amount || 0).toLocaleString()} MMK`, color: 'var(--neon-blue)' },
-              { label: 'Total Won', value: `${Number(wallet.total_won || 0).toLocaleString()} MMK`, color: 'var(--neon-green)' },
-              { label: 'Total Lost', value: `${Number(wallet.total_lost || 0).toLocaleString()} MMK`, color: 'var(--neon-red)' },
-            ].map(w => (
-              <div key={w.label} style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>{w.label}</div>
-                <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: w.color }}>{w.value}</div>
-              </div>
-            ))}
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>Balance</div>
+              <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: 'var(--neon-green)' }}>{Number(wallet.balance || 0).toLocaleString()} MMK</div>
+            </div>
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>Frozen</div>
+              <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: 'var(--neon-blue)' }}>{Number(wallet.frozen_amount || 0).toLocaleString()} MMK</div>
+            </div>
           </div>
         </div>
       )}
@@ -194,47 +236,58 @@ export default function MobileProfilePage() {
       <div style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: '16px', marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🎮 Account Details</div>
         <div style={{ fontSize: 11, color: 'var(--neon-yellow)', marginBottom: 14 }}>
-          ⚠️ Telegram & MLBB can only be changed once every 30 days.
-        </div>
-
-        {/* Telegram row */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Telegram Username</span>
-            <button
-              onClick={() => { setTgUsername((p.telegram_username as string)?.replace('@', '') || ''); setTgProfile(null); setError(''); setEditTg(true); }}
-              style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-            >
-              Edit
-            </button>
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>{p.telegram_username as string || '—'}</div>
+          ⚠️ Note: Telegram Username can only be changed once every 30 days.
         </div>
 
         {/* MLBB row */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>MLBB Identity</span>
-            <button
-              onClick={() => { setServerId(p.mlbb_server_id as string || ''); setZoneId(p.mlbb_zone_id as string || ''); setMlbbIgn(''); setError(''); setEditMlbb(true); }}
-              style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-            >
-              Edit
-            </button>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Mobile Legends ID</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: 6, color: 'var(--neon-green)', fontWeight: 700 }}>Verified</span>
+              <button
+                onClick={() => { setServerId(p.mlbb_server_id as string || ''); setZoneId(p.mlbb_zone_id as string || ''); setMlbbIgn(''); setMlbbProfile(null); setVc(''); setCodeSent(false); setError(''); setEditMlbb(true); }}
+                style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Edit
+              </button>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>IGN</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_ign as string || '—'}</div>
+            <div><div style={{ fontSize: 9, color: 'var(--text-muted)' }}>IGN</div><div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_ign as string || '—'}</div></div>
+            <div><div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Server</div><div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_server_id as string || '—'}</div></div>
+            <div><div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Zone</div><div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_zone_id as string || '—'}</div></div>
+          </div>
+        </div>
+
+        {/* Telegram row */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Telegram Username</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {p.telegram_username && p.telegram_chat_id && (
+                <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: 6, color: 'var(--neon-green)', fontWeight: 700 }}>Verified</span>
+              )}
+              {p.telegram_username && !p.telegram_chat_id && (
+                <span style={{ fontSize: 10, background: 'rgba(234,179,8,0.15)', padding: '2px 8px', borderRadius: 6, color: 'var(--neon-yellow)', fontWeight: 700 }}>Pending</span>
+              )}
+              <button
+                onClick={() => { 
+                  setTgUsername((p.telegram_username as string)?.replace('@', '') || ''); 
+                  setTgStep(p.telegram_username && !p.telegram_chat_id ? 2 : 1);
+                  setTgProfile(null); setError(''); setEditTg(true); 
+                  if (p.telegram_username && !p.telegram_chat_id) {
+                    fetch(`${API_URL}/api/users/telegram-group`).then(r => r.json()).then(d => { if (d.success) setTgGroupLink(d.data.invite_link) });
+                  }
+                }}
+                style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                {p.telegram_chat_id ? 'Edit' : (p.telegram_username ? 'Verify' : 'Connect')}
+              </button>
             </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Server</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_server_id as string || '—'}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Zone</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{p.mlbb_zone_id as string || '—'}</div>
-            </div>
+          </div>
+          <div style={{ fontSize: p.telegram_username ? 13 : 11, fontWeight: p.telegram_username ? 600 : 400, color: p.telegram_username ? 'inherit' : 'var(--neon-cyan)' }}>
+            {p.telegram_username as string || '🔔 Get instant alerts on Telegram'}
           </div>
         </div>
       </div>
@@ -312,27 +365,57 @@ export default function MobileProfilePage() {
             <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Edit MLBB Identity</h2>
             {error && <div style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--neon-red)', padding: 10, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-            {!mlbbIgn ? (
+            {!mlbbProfile ? (
               <>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Server ID</label>
-                <input className="input-field" value={serverId} onChange={e => setServerId(e.target.value)} style={{ marginBottom: 12 }} placeholder="e.g. 19864" />
+                <input className="input-field" value={serverId} onChange={e => setServerId(e.target.value)} disabled={codeSent} style={{ marginBottom: 12 }} placeholder="e.g. 19864" />
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Zone ID</label>
-                <input className="input-field" value={zoneId} onChange={e => setZoneId(e.target.value)} style={{ marginBottom: 16 }} placeholder="e.g. 9637" />
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setEditMlbb(false)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handleVerifyMlbb} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Verifying...' : 'Verify IGN'}</button>
-                </div>
+                <input className="input-field" value={zoneId} onChange={e => setZoneId(e.target.value)} disabled={codeSent} style={{ marginBottom: 16 }} placeholder="e.g. 9637" />
+                
+                {!codeSent ? (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setEditMlbb(false)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={handleSendVc} disabled={saving || !serverId || !zoneId} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Sending...' : 'Send VC'}</button>
+                  </div>
+                ) : (
+                  <>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--neon-cyan)', marginBottom: 4 }}>Verification Code</label>
+                    <input className="input-field" value={vc} onChange={e => setVc(e.target.value)} maxLength={4} style={{ marginBottom: 20, letterSpacing: 4, fontWeight: 700 }} placeholder="4-digit code" />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => setCodeSent(false)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Back</button>
+                      <button onClick={handleVerifyVc} disabled={saving || vc.length !== 4} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Verifying...' : 'Verify'}</button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <>
-                <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid var(--neon-green)', borderRadius: 12, padding: 16, textAlign: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: 'var(--neon-green)', fontWeight: 700, marginBottom: 6 }}>✓ Verified</div>
-                  <div className="font-display" style={{ fontSize: 22, fontWeight: 800 }}>{mlbbIgn}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{serverId} / {zoneId}</div>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(6,182,212,0.06))',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: 14,
+                  padding: 16,
+                  marginBottom: 20,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img
+                      src={mlbbProfile.avatar_url || 'https://via.placeholder.com/100'}
+                      alt={mlbbProfile.mlbb_ign}
+                      style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', border: '2px solid var(--accent-primary)' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>{mlbbProfile.mlbb_ign}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ID: {serverId} ({zoneId})</div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: 4 }}>Level {mlbbProfile.level}</span>
+                        <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: 4 }}>{mlbbProfile.reg_country.toUpperCase()}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setMlbbIgn('')} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Re-enter</button>
-                  <button onClick={handleSaveMlbb} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                  <button onClick={() => setMlbbProfile(null)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>✕ Not me</button>
+                  <button onClick={handleSaveMlbb} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Confirm Changes'}</button>
                 </div>
               </>
             )}
@@ -351,35 +434,62 @@ export default function MobileProfilePage() {
             animation: 'slideUp 0.28s ease',
           }}>
             <div style={{ width: 36, height: 4, background: 'var(--border-secondary)', borderRadius: 2, margin: '0 auto 20px' }} />
-            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Edit Telegram</h2>
+            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
+              {tgStep === 1 ? (p.telegram_username ? 'Edit' : 'Connect') : 'Verify'} Telegram
+            </h2>
             {error && <div style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--neon-red)', padding: 10, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-            {!tgProfile ? (
-              <>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Username (without @)</label>
-                <input className="input-field" value={tgUsername} onChange={e => setTgUsername(e.target.value.replace('@', ''))} style={{ marginBottom: 16 }} placeholder="your_username" />
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setEditTg(false)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handleVerifyTg} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0088cc, #006ba6)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Verifying...' : 'Verify'}</button>
-                </div>
-              </>
+            {tgStep === 1 ? (
+              !tgProfile ? (
+                <>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Username (without @)</label>
+                  <input className="input-field" value={tgUsername} onChange={e => setTgUsername(e.target.value.replace('@', ''))} style={{ marginBottom: 16 }} placeholder="your_username" />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setEditTg(false)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={handleVerifyTg} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0088cc, #006ba6)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Verifying...' : 'Verify'}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', borderRadius: 12, padding: 16, textAlign: 'center', marginBottom: 16 }}>
+                    {tgProfile.profile_image ? (
+                      <img src={tgProfile.profile_image} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 10px', border: '2px solid var(--accent-primary)', display: 'block' }} />
+                    ) : (
+                      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #0088cc, #006ba6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: 'white', margin: '0 auto 10px' }}>
+                        {(tgProfile.display_name || tgUsername).charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>{tgProfile.display_name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>@{tgUsername.replace('@', '')}</div>
+                    {tgProfile.bio && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>"{tgProfile.bio}"</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setTgProfile(null)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Re-enter</button>
+                    <button onClick={handleConfirmTgProfile} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0088cc, #006ba6)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Confirm & Next' : 'Next Step'}</button>
+                  </div>
+                </>
+              )
             ) : (
               <>
                 <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', borderRadius: 12, padding: 16, textAlign: 'center', marginBottom: 16 }}>
-                  {tgProfile.profile_image ? (
-                    <img src={tgProfile.profile_image} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 10px', border: '2px solid var(--accent-primary)', display: 'block' }} />
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
+                  <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Step 2: Join the Official Group</h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                    To verify your identity, you must join our official Telegram group using the account <b>{tgUsername}</b>.
+                  </p>
+                  {tgGroupLink ? (
+                    <a href={tgGroupLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '12px 24px', background: 'linear-gradient(135deg, #0088cc, #006ba6)', color: 'white', borderRadius: 12, textDecoration: 'none', fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
+                      Join Telegram Group
+                    </a>
                   ) : (
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #0088cc, #006ba6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: 'white', margin: '0 auto 10px' }}>
-                      {(tgProfile.display_name || tgUsername).charAt(0).toUpperCase()}
-                    </div>
+                    <div style={{ color: 'var(--neon-red)', fontSize: 12, marginBottom: 10 }}>Invite link unavailable.</div>
                   )}
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{tgProfile.display_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>@{tgUsername.replace('@', '')}</div>
-                  {tgProfile.bio && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>"{tgProfile.bio}"</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setTgProfile(null)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Re-enter</button>
-                  <button onClick={handleSaveTg} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0088cc, #006ba6)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                  <button onClick={() => setTgStep(1)} style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--border-secondary)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Back</button>
+                  <button onClick={handleCheckStatus} disabled={saving} style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', background: 'var(--neon-green)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>
+                    {saving ? 'Checking...' : "I've Joined"}
+                  </button>
                 </div>
               </>
             )}

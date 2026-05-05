@@ -16,8 +16,9 @@ export default function RegisterPage() {
   // State 1
   const [serverId, setServerId] = useState('');
   const [zoneId, setZoneId] = useState('');
-  const [mlbbIgn, setMlbbIgn] = useState('');
-  const [region, setRegion] = useState('');
+  const [vc, setVc] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [mlbbProfile, setMlbbProfile] = useState<{ mlbb_ign: string; avatar_url: string; level: number; rank_level: number; reg_country: string } | null>(null);
 
   // State 2
   const [telegramUsername, setTelegramUsername] = useState('');
@@ -30,22 +31,43 @@ export default function RegisterPage() {
 
   const stepLabels = ['MLBB Identity', 'Telegram', 'Security'];
 
-  async function handleStep1() {
+  async function handleSendCode() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/verify-mlbb`, {
+      const res = await fetch(`${API_URL}/api/auth/send-vc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ server_id: serverId, zone_id: zoneId }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error); return; }
-      setMlbbIgn(data.data.mlbb_ign);
-      setRegion(data.data.region);
-      setStep(2);
+      setCodeSent(true);
     } catch {
-      setError('Failed to verify. Try again.');
+      setError('Failed to send verification code. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyVc() {
+    if (!vc || vc.length !== 4) {
+      setError('Please enter the 4-digit verification code');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/verify-vc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server_id: serverId, zone_id: zoneId, vc }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error); return; }
+      setMlbbProfile(data.data);
+    } catch {
+      setError('Failed to verify code. Try again.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +104,13 @@ export default function RegisterPage() {
     setTelegramUsername('');
   }
 
+  function handleSkipTelegram() {
+    setTelegramUsername('');
+    setTgProfile(null);
+    setTgConfirmed(false);
+    setStep(3);
+  }
+
   async function handleStep3() {
     setError('');
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
@@ -94,8 +123,8 @@ export default function RegisterPage() {
         body: JSON.stringify({
           server_id: serverId,
           zone_id: zoneId,
-          mlbb_ign: mlbbIgn,
-          telegram_username: telegramUsername,
+          vc,
+          telegram_username: telegramUsername || '',
           telegram_display_name: tgProfile?.display_name,
           telegram_bio: tgProfile?.bio,
           telegram_profile_image: tgProfile?.profile_image,
@@ -183,17 +212,69 @@ export default function RegisterPage() {
             <>
               <div style={{ fontSize: 18, marginBottom: 4 }}>🎮</div>
               <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>MLBB Identity Verification</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>Enter your Mobile Legends Server ID and Zone ID</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>Enter your Mobile Legends Server ID and Zone ID to receive a verification code in your in-game mail.</p>
 
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Server ID</label>
-              <input className="input-field" placeholder="e.g. 123456789" value={serverId} onChange={(e) => setServerId(e.target.value)} style={{ marginBottom: 14 }} />
+              {!mlbbProfile ? (
+                <>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Server ID</label>
+                  <input className="input-field" placeholder="e.g. 123456789" value={serverId} onChange={(e) => setServerId(e.target.value)} disabled={codeSent} style={{ marginBottom: 14 }} />
 
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Zone ID</label>
-              <input className="input-field" placeholder="e.g. 2001" value={zoneId} onChange={(e) => setZoneId(e.target.value)} style={{ marginBottom: 20 }} />
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Zone ID</label>
+                  <input className="input-field" placeholder="e.g. 2001" value={zoneId} onChange={(e) => setZoneId(e.target.value)} disabled={codeSent} style={{ marginBottom: 20 }} />
 
-              <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleStep1} disabled={loading || !serverId || !zoneId}>
-                {loading ? '⏳ Verifying...' : '🔍 Verify MLBB Account'}
-              </button>
+                  {!codeSent ? (
+                    <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleSendCode} disabled={loading || !serverId || !zoneId}>
+                      {loading ? '⏳ Sending...' : '✉️ Send Verification Code'}
+                    </button>
+                  ) : (
+                    <>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--neon-cyan)', marginBottom: 6 }}>Verification Code (From In-Game Mail)</label>
+                      <input className="input-field" placeholder="Enter 4-digit code" maxLength={4} value={vc} onChange={(e) => setVc(e.target.value)} style={{ marginBottom: 20, letterSpacing: 4, fontWeight: 700 }} />
+
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setCodeSent(false)}>← Back</button>
+                        <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleVerifyVc} disabled={loading || !vc || vc.length !== 4}>
+                          {loading ? '⏳ Verifying...' : 'Verify Code →'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* MLBB Profile Card */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(6,182,212,0.06))',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: 14,
+                    padding: 20,
+                    marginBottom: 20,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+                      <img
+                        src={mlbbProfile.avatar_url || 'https://via.placeholder.com/100'}
+                        alt={mlbbProfile.mlbb_ign}
+                        style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', border: '2px solid var(--accent-primary)' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{mlbbProfile.mlbb_ign}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {serverId} ({zoneId})</div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4 }}>Level {mlbbProfile.level}</span>
+                          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4 }}>{mlbbProfile.reg_country.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { setMlbbProfile(null); setVc(''); }}>✕ Not me</button>
+                    <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setStep(2)}>
+                      ✓ Yes, that&apos;s me
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -201,24 +282,30 @@ export default function RegisterPage() {
           {step === 2 && (
             <>
               <div style={{ background: 'rgba(34,197,94,0.1)', borderRadius: 10, padding: 12, marginBottom: 20, fontSize: 13 }}>
-                ✅ MLBB Account Found: <strong style={{ color: 'var(--neon-green)' }}>{mlbbIgn}</strong> ({region})
+                ✅ MLBB Account Verified: <strong style={{ color: 'var(--neon-green)' }}>{mlbbProfile?.mlbb_ign}</strong>
               </div>
 
               <div style={{ fontSize: 18, marginBottom: 4 }}>📱</div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Telegram Identity</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>Enter your Telegram username for battle room communication</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700 }}>Telegram Identity</h3>
+                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>Optional</span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>Link your Telegram to get battle room notifications and communicate with opponents easily.</p>
 
               {!tgProfile ? (
                 <>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Telegram Username</label>
                   <input className="input-field" placeholder="@your_username" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} style={{ marginBottom: 20 }} />
 
-                  <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                     <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setStep(1)}>← Back</button>
                     <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleStep2} disabled={loading || !telegramUsername}>
                       {loading ? '⏳ Checking...' : '🔍 Verify'}
                     </button>
                   </div>
+                  <button onClick={handleSkipTelegram} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', padding: '10px 0', textDecoration: 'underline' }}>
+                    Skip this step
+                  </button>
                 </>
               ) : (
                 <>
@@ -297,7 +384,7 @@ export default function RegisterPage() {
           {step === 3 && (
             <>
               <div style={{ background: 'rgba(34,197,94,0.1)', borderRadius: 10, padding: 12, marginBottom: 20, fontSize: 13 }}>
-                ✅ {mlbbIgn} • {telegramUsername}
+                ✅ Ready to finalize • {telegramUsername ? telegramUsername : 'No Telegram linked'}
               </div>
 
               <div style={{ fontSize: 18, marginBottom: 4 }}>🔒</div>

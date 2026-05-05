@@ -18,6 +18,7 @@ export default function AdminTransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('All');
+  const [search, setSearch] = useState('');
   const types = ['All', 'FREEZE', 'RELEASE', 'PAYOUT', 'COMMISSION', 'REFUND', 'ROOM_FEE'];
 
   useEffect(() => {
@@ -29,6 +30,11 @@ export default function AdminTransactionsPage() {
     const token = localStorage.getItem('gr_admin_token');
     try {
       const res = await fetch(`${API_URL}/api/admin/transactions`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         // Filter out DEPOSIT and WITHDRAWAL transactions
@@ -39,13 +45,20 @@ export default function AdminTransactionsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
+      window.location.href = '/admin/error?message=The transaction registry could not be reached. Please check your network connection.';
     }
     setLoading(false);
   }
 
-  const filtered = typeFilter === 'All'
-    ? transactions
-    : transactions.filter((t) => t.type === typeFilter);
+  const filtered = transactions.filter((t) => {
+    const matchesType = typeFilter === 'All' || t.type === typeFilter;
+    const matchesSearch = search === '' || 
+      t.user?.mlbb_ign?.toLowerCase().includes(search.toLowerCase()) || 
+      t.user?.username?.toLowerCase().includes(search.toLowerCase()) ||
+      t.description?.toLowerCase().includes(search.toLowerCase()) ||
+      t.match_id?.toLowerCase().includes(search.toLowerCase());
+    return matchesType && matchesSearch;
+  });
 
   // Calculate totals
   const totalPayouts = transactions.filter((t) => t.type === 'PAYOUT').reduce((s, t) => s + Number(t.amount), 0);
@@ -79,27 +92,37 @@ export default function AdminTransactionsPage() {
         </div>
       </div>
 
-      {/* Filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {types.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTypeFilter(t)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              border: '1px solid',
-              borderColor: typeFilter === t ? 'var(--accent-primary)' : 'var(--border-secondary)',
-              background: typeFilter === t ? 'rgba(124,58,237,0.15)' : 'transparent',
-              color: typeFilter === t ? 'var(--accent-primary)' : 'var(--text-muted)',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {t}
-          </button>
-        ))}
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          className="input-field"
+          placeholder="🔍 Search by IGN, match ID, description..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: 350 }}
+        />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {types.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 10,
+                border: '1px solid',
+                borderColor: typeFilter === t ? 'var(--accent-primary)' : 'var(--border-secondary)',
+                background: typeFilter === t ? 'rgba(124,58,237,0.15)' : 'transparent',
+                color: typeFilter === t ? 'var(--accent-primary)' : 'var(--text-muted)',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -111,7 +134,7 @@ export default function AdminTransactionsPage() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>User</th>
+                <th>User (IGN)</th>
                 <th>Type</th>
                 <th>Amount</th>
                 <th>Match</th>
@@ -124,24 +147,29 @@ export default function AdminTransactionsPage() {
                 return (
                   <tr key={tx.id}>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(tx.created_at)}</td>
-                    <td style={{ fontWeight: 600, fontSize: 13 }}>{tx.user?.username || tx.user_id}</td>
+                    <td style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+                      {tx.user?.mlbb_ign || tx.user?.username || tx.user_id}
+                    </td>
                     <td>
-                      <span style={{ color: config.color, fontWeight: 600, fontSize: 12 }}>
+                      <span style={{ color: config.color, fontWeight: 700, fontSize: 11, background: `${config.color}15`, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
                         {tx.type}
                       </span>
                     </td>
-                    <td className="font-display" style={{ fontWeight: 700, color: config.color, fontSize: 14 }}>
+                    <td className="font-display" style={{ fontWeight: 800, color: config.color, fontSize: 14 }}>
                       {formatCurrency(tx.amount)}
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: tx.match_id ? 'var(--neon-yellow)' : 'var(--text-muted)' }}>
                       {tx.match_id || '---'}
                     </td>
-                    <td style={{ fontSize: 13, maxWidth: 200 }}>{tx.description}</td>
+                    <td style={{ fontSize: 13, maxWidth: 300, lineHeight: 1.4 }}>{tx.description}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          {filtered.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No transactions found</div>
+          )}
         </div>
       )}
     </div>

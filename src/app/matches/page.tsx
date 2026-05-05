@@ -28,7 +28,7 @@ function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: numbe
     );
   }
 
-  const initial = (user.telegram_display_name || user.telegram_username || user.username || 'U').replace('@', '').trim().charAt(0).toUpperCase();
+  const initial = (user.mlbb_ign || user.telegram_display_name || user.telegram_username || user.username || 'U').replace('@', '').trim().charAt(0).toUpperCase();
   return <span>{initial}</span>;
 }
 
@@ -291,7 +291,7 @@ export default function MatchesPage() {
                   >
                     <MatchAvatar user={match.challenger} size={48} />
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.username || 'Unknown'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.mlbb_ign || match.challenger?.username || 'Unknown'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     {getWinRate(match.challenger?.wins || 0, match.challenger?.losses || 0)} WR
                   </div>
@@ -337,7 +337,7 @@ export default function MatchesPage() {
                       >
                         <MatchAvatar user={match.opponent} size={48} />
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent.username}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent?.mlbb_ign || match.opponent?.username}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {getWinRate(match.opponent.wins, match.opponent.losses)} WR
                       </div>
@@ -411,7 +411,7 @@ export default function MatchesPage() {
                 )}
                 {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(match.status) && (
                   <button className="btn-telegram" style={{ width: '100%' }} onClick={() => router.push('/battle/' + match.id)}>
-                    📱 Open Room
+                    📱 Open Battle Room
                   </button>
                 )}
                 
@@ -428,7 +428,7 @@ export default function MatchesPage() {
                   {/* Winner on Right */}
                   {match.status === 'COMPLETED' && match.winner_id && (
                     <span style={{ fontSize: 13, color: 'var(--neon-green)', fontWeight: 600 }}>
-                      🏆 {match.winner_id === match.challenger_id ? match.challenger?.username : match.opponent?.username} Won
+                      🏆 {match.winner_id === match.challenger_id ? (match.challenger?.mlbb_ign || match.challenger?.username) : (match.opponent?.mlbb_ign || match.opponent?.username)} Won
                     </span>
                   )}
                   {match.status === 'DISPUTED' && (
@@ -479,7 +479,7 @@ export default function MatchesPage() {
                   >
                     <MatchAvatar user={match.challenger} size={48} />
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.username || 'Unknown'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{match.challenger?.mlbb_ign || match.challenger?.username || 'Unknown'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     {getWinRate(match.challenger?.wins || 0, match.challenger?.losses || 0)} WR
                   </div>
@@ -525,7 +525,7 @@ export default function MatchesPage() {
                       >
                         <MatchAvatar user={match.opponent} size={48} />
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent.username}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{match.opponent?.mlbb_ign || match.opponent?.username}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {getWinRate(match.opponent.wins, match.opponent.losses)} WR
                       </div>
@@ -638,7 +638,7 @@ export default function MatchesPage() {
 
                   {match.status === 'COMPLETED' && match.winner_id && (
                     <span style={{ fontSize: 13, color: 'var(--neon-green)', fontWeight: 600 }}>
-                      🏆 {match.winner_id === match.challenger_id ? match.challenger?.username : match.opponent?.username} Won
+                      🏆 {match.winner_id === match.challenger_id ? (match.challenger?.mlbb_ign || match.challenger?.username) : (match.opponent?.mlbb_ign || match.opponent?.username)} Won
                     </span>
                   )}
                   {match.status === 'DISPUTED' && (

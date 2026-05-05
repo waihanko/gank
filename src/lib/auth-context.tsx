@@ -86,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        if (res.status === 401) logout();
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setUser(data.data);
@@ -103,6 +107,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        if (res.status === 401) logout();
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setUser((prev) => prev ? { ...prev, ...data.data } : data.data);

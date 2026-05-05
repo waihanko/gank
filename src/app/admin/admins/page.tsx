@@ -40,10 +40,16 @@ export default function AdminsPage() {
       const res = await fetch(`${API_URL}/api/admin/admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('gr_admin_token');
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await res.json();
       if (data.success) setAdmins(data.data);
     } catch (e) {
       console.error(e);
+      window.location.href = '/admin/error?message=The administrator registry is currently unreachable. Please check your network connection.';
     } finally {
       setLoading(false);
     }

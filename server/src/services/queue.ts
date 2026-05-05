@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { env, TIMERS } from '../config/env';
-import { revokeInviteLinks } from './bot';
+
 
 let connection: IORedis | null = null;
 
@@ -65,21 +65,9 @@ export async function scheduleSubmissionTimeout(matchId: string) {
   console.log(`[JOB] Scheduled submission-timeout for ${matchId} in ${TIMERS.SUBMISSION / 1000}s`);
 }
 
-export async function scheduleRoomWipe(matchId: string, roomId: string) {
-  await matchQueue.add('room-wipe', { matchId, roomId }, {
-    delay: TIMERS.ROOM_WIPE_DELAY,
-    jobId: `wipe-${matchId}`,
-  });
-  console.log(`[JOB] Scheduled room-wipe for ${matchId}`);
-}
 
-export async function schedulePendingJoinTimeout(matchId: string) {
-  await matchQueue.add('pending-join-timeout', { matchId }, {
-    delay: 5 * 60 * 1000, // 5 minutes
-    jobId: `pending-join-${matchId}`,
-  });
-  console.log(`[JOB] Scheduled pending-join-timeout for ${matchId} in 5 minutes`);
-}
+
+
 
 export async function cancelJob(jobId: string) {
   try {
@@ -102,42 +90,7 @@ export function startMatchWorker() {
     console.log(`[WORKER] Processing ${job.name} for match ${job.data.matchId}`);
 
     switch (job.name) {
-      case 'pending-join-timeout': {
-        // Challenger didn't join Telegram within 5 minutes → cancel match, unfreeze
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-        try {
-          const match = await prisma.match.findUnique({
-            where: { id: job.data.matchId },
-            include: { room: true },
-          });
-          if (!match || match.status !== 'PENDING_JOIN') break;
-          
-          console.log(`[WORKER] Pending join expired → canceling match ${match.id}`);
-          
-          // Just cancel the match and free the room, no funds were frozen yet
-          await prisma.$transaction(async (tx: any) => {
-            await tx.match.update({
-              where: { id: match.id },
-              data: { status: 'CANCELLED' },
-            });
-          });
-          
-          if (match.room && match.room.chat_id) {
-            await revokeInviteLinks(match.room.chat_id, [match.challenger_invite_link, match.opponent_invite_link]);
-          }
-          
-          if (match.room_id) {
-            await prisma.telegramRoom.update({
-              where: { id: match.room_id },
-              data: { status: 'AVAILABLE', current_match_id: null },
-            });
-          }
-        } finally {
-          await prisma.$disconnect();
-        }
-        break;
-      }
+
 
       case 'ready-check-timeout':
         // Both didn't click READY → void match, refund 100%
@@ -160,26 +113,7 @@ export function startMatchWorker() {
         console.log(`[WORKER] Submission timed out → voiding match ${job.data.matchId}`);
         break;
 
-      case 'room-wipe': {
-        // Kick players from room and reset it to AVAILABLE
-        const { PrismaClient: PC2 } = require('@prisma/client');
-        const p2 = new PC2();
-        try {
-          const { kickAndWipeRoom } = require('./bot');
-          const room = await p2.telegramRoom.findUnique({ where: { id: job.data.roomId } });
-          if (room) {
-            await kickAndWipeRoom(room.chat_id, job.data.matchId);
-            await p2.telegramRoom.update({
-              where: { id: room.id },
-              data: { status: 'AVAILABLE', current_match_id: null },
-            });
-            console.log(`[WORKER] Room ${room.title} wiped and recycled`);
-          }
-        } finally {
-          await p2.$disconnect();
-        }
-        break;
-      }
+
     }
   }, {
     connection: getRedisConnection(),
