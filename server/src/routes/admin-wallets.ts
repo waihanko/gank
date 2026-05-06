@@ -51,7 +51,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const validated = walletSchema.partial().parse(req.body);
     const wallet = await prisma.adminWallet.update({
-      where: { id },
+      where: { id: String(id) },
       data: validated,
     });
     res.json({ success: true, data: wallet });
@@ -67,7 +67,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await prisma.adminWallet.delete({ where: { id } });
+    await prisma.adminWallet.delete({ where: { id: String(id) } });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to delete wallet' });
