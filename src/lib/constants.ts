@@ -54,7 +54,7 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
   { label: 'Matches', href: '/admin/matches', icon: 'Swords' },
   { label: 'Groups', href: '/admin/groups', icon: 'MessageSquare' },
-  { label: 'Users', href: '/admin/users', icon: 'Users' },
+  { label: 'Players', href: '/admin/users', icon: 'Users' },
   { label: 'Disputes', href: '/admin/disputes', icon: 'AlertTriangle' },
   { label: 'Transactions', href: '/admin/transactions', icon: 'ArrowLeftRight' },
   { label: 'Wallet Trans.', href: '/admin/wallet-transactions', icon: 'Wallet' },

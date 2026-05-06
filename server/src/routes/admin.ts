@@ -188,15 +188,20 @@ router.delete('/admins/:id', async (req: Request, res: Response): Promise<void> 
 
 // GET /admin/stats — dashboard stats
 router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
-  const [totalUsers, totalMatches, activeMatches, pendingDisputes, rooms] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [totalUsers, totalMatches, activeMatches, pendingDisputes, todayMatches, todayDisputes] = await Promise.all([
     prisma.user.count(),
     prisma.match.count(),
     prisma.match.count({ where: { status: { in: ['WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'] } } }),
     prisma.dispute.count({ where: { status: 'PENDING' } }),
-    prisma.telegramGroup.count(),
+    prisma.match.count({ where: { created_at: { gte: todayStart } } }),
+    prisma.dispute.count({ where: { created_at: { gte: todayStart } } }),
   ]);
 
   const totalRevenue = await prisma.platformRevenue.aggregate({ _sum: { amount: true } });
+  const todayRevenue = await prisma.platformRevenue.aggregate({ _sum: { amount: true }, where: { created_at: { gte: todayStart } } });
 
   res.json({
     success: true,
@@ -205,8 +210,10 @@ router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
       totalMatches,
       activeMatches,
       pendingDisputes,
+      todayMatches,
+      todayDisputes,
       totalRevenue: totalRevenue._sum.amount || 0,
-      totalGroups: rooms,
+      todayRevenue: todayRevenue._sum.amount || 0,
     },
   });
 });
@@ -308,8 +315,9 @@ router.post('/users/:id/unban', async (req: Request, res: Response): Promise<voi
 router.get('/matches', async (req: Request, res: Response): Promise<void> => {
   const matches = await prisma.match.findMany({
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true } },
+      disputes: true,
     },
     orderBy: { created_at: 'desc' },
     take: 100,
@@ -323,12 +331,25 @@ router.get('/matches/:id/messages', async (req: Request, res: Response): Promise
   const messages = await prisma.battleMessage.findMany({
     where: { match_id: matchId },
     include: {
-      sender: { select: { id: true, username: true, mlbb_ign: true, avatar_url: true } }
+      sender: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true } }
     },
     orderBy: { created_at: 'asc' },
     take: 500
   });
   res.json({ success: true, data: messages });
+});
+
+// GET /admin/matches/:id/screenshots — get evidence screenshots uploaded for a match
+router.get('/matches/:id/screenshots', async (req: Request, res: Response): Promise<void> => {
+  const matchId = req.params.id as string;
+  const screenshots = await prisma.matchScreenshot.findMany({
+    where: { match_id: matchId },
+    include: {
+      uploader: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true } }
+    },
+    orderBy: { created_at: 'asc' }
+  });
+  res.json({ success: true, data: screenshots });
 });
 
 // POST /admin/matches/:id/void — Void match and refund players
@@ -407,8 +428,8 @@ router.get('/disputes', async (_req: Request, res: Response): Promise<void> => {
     include: {
       match: {
         include: {
-          challenger: { select: { id: true, username: true, mlbb_ign: true } },
-          opponent: { select: { id: true, username: true, mlbb_ign: true } },
+          challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, mlbb_avatar_url: true } },
+          opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, mlbb_avatar_url: true } },
         },
       },
       reporter: { select: { id: true, username: true } },

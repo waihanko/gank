@@ -39,6 +39,10 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
   const [socket, setSocket] = useState<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [evidenceImages, setEvidenceImages] = useState<{ dataUrl: string; name: string }[]>([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [evidenceSubmitted, setEvidenceSubmitted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resolvedParams = use(params);
   const matchId = resolvedParams.id;
@@ -156,6 +160,43 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
     setInputText('');
   };
 
+  const handleEvidenceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 2 - evidenceImages.length;
+    const toAdd = files.slice(0, remaining);
+    toAdd.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEvidenceImages(prev => [...prev, { dataUrl: reader.result as string, name: file.name }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const handleEvidenceSubmit = async () => {
+    if (evidenceImages.length === 0) return showAlert('Please pick at least 1 image.');
+    setUploadingEvidence(true);
+    try {
+      const res = await fetch(`${API_URL}/api/battle-room/${matchId}/dispute-evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ images: evidenceImages.map(img => ({ dataUrl: img.dataUrl })) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEvidenceSubmitted(true);
+        setEvidenceImages([]);
+      } else {
+        showAlert(data.error || 'Upload failed');
+      }
+    } catch {
+      showAlert('Network error during upload.');
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
   const handleReady = async () => {
     try {
       const res = await fetch(`${API_URL}/api/battle-room/${matchId}/ready`, {
@@ -170,7 +211,11 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
   };
 
   const handleClaim = async (claim: 'WON' | 'LOST') => {
-    showConfirm(`Are you sure you want to claim ${claim}?`, async () => {
+    const isWin = claim === 'WON';
+    const claimVerb = isWin ? 'winning' : 'losing';
+    const message = `⚠️ Final Submission: You are about to confirm ${claimVerb} this match. This action is irreversible and cannot be changed later. Do you confirm this result?`;
+    
+    showConfirm(message, async () => {
       try {
         const res = await fetch(`${API_URL}/api/battle-room/${matchId}/claim`, {
           method: 'POST',
@@ -182,6 +227,10 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
       } catch {
         showAlert('Network error');
       }
+    }, {
+      title: claim,
+      titleColor: isWin ? 'var(--neon-green)' : 'var(--neon-red)',
+      icon: isWin ? '🏆' : '💀'
     });
   };
 
@@ -452,6 +501,68 @@ export default function BattleRoomPage({ params }: { params: Promise<{ id: strin
               </svg>
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Dispute Evidence Picker */}
+      {match?.status === 'DISPUTED' && (
+        <div style={{
+          padding: mobile ? '12px 16px' : '20px',
+          borderTop: '1px solid rgba(239,68,68,0.3)',
+          background: mobile ? 'rgba(10,10,15,0.97)' : 'var(--bg-secondary)',
+          backdropFilter: mobile ? 'blur(20px)' : 'none',
+          paddingBottom: mobile ? 'max(12px, env(safe-area-inset-bottom))' : '20px',
+        }}>
+          {evidenceSubmitted ? (
+            <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 14, color: 'var(--neon-green)', fontWeight: 600 }}>
+              ✅ Evidence submitted! Admin will review your images.
+            </div>
+          ) : (
+            <>
+              <div style={{
+                fontSize: 12, color: 'var(--neon-yellow)', marginBottom: 12, lineHeight: 1.6,
+                background: 'rgba(234,179,8,0.08)', borderRadius: 10, padding: '10px 14px',
+                border: '1px dashed rgba(234,179,8,0.3)'
+              }}>
+                📸 Submit up to <strong>2 screenshots</strong> as evidence for the admin dispute review. Accepted: JPG, PNG.
+              </div>
+              {evidenceImages.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                  {evidenceImages.map((img, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={img.dataUrl} alt="evidence" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12, border: '1px solid var(--border-primary)' }} />
+                      <button onClick={() => setEvidenceImages(prev => prev.filter((_, j) => j !== i))} style={{
+                        position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: '50%',
+                        background: 'var(--neon-red)', border: 'none', color: 'white', fontSize: 12,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                {evidenceImages.length < 2 && (
+                  <button onClick={() => fileInputRef.current?.click()} style={{
+                    flex: 1, padding: '12px', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.2)',
+                    background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: 14,
+                    cursor: 'pointer', fontWeight: 600
+                  }}>
+                    🖼️ Pick Image ({evidenceImages.length}/2)
+                  </button>
+                )}
+                {evidenceImages.length > 0 && (
+                  <button onClick={handleEvidenceSubmit} disabled={uploadingEvidence} style={{
+                    flex: 1, padding: '12px', borderRadius: 12, border: 'none',
+                    background: 'linear-gradient(135deg, var(--neon-red), #b91c1c)',
+                    color: 'white', fontSize: 14, cursor: 'pointer', fontWeight: 700
+                  }}>
+                    {uploadingEvidence ? '⏳ Uploading...' : '📤 Submit Evidence'}
+                  </button>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleEvidenceFileChange} />
+            </>
+          )}
         </div>
       )}
     </div>

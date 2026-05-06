@@ -149,7 +149,7 @@ export default function MobileProfilePage() {
     );
   }
 
-  const p = profile || user;
+  const p = (profile || user) as any;
   const wins = (p.wins as number) || 0;
   const losses = (p.losses as number) || 0;
   const total = wins + losses;

@@ -52,10 +52,10 @@ export default function AdminUsersPage() {
     <div className="page-container">
       <div style={{ marginBottom: 32 }}>
         <h1 className="font-display" style={{ fontSize: 28, fontWeight: 800 }}>
-          👥 <span className="gradient-text">User Management</span>
+          👥 <span className="gradient-text">Player Management</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
-          Manage all registered users and their wallets
+          Manage all registered players and their wallets
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           className="input-field"
-          placeholder="🔍 Search users..."
+          placeholder="🔍 Search players..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ maxWidth: 300 }}
@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
 
       {/* Users Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading users...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading players...</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
           {filtered.map((user) => {
@@ -103,6 +103,7 @@ export default function AdminUsersPage() {
                       width: 48,
                       height: 48,
                       borderRadius: 14,
+                      overflow: 'hidden',
                       background: user.is_banned
                         ? 'linear-gradient(135deg, #dc2626, #991b1b)'
                         : 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
@@ -113,7 +114,9 @@ export default function AdminUsersPage() {
                       fontWeight: 700,
                     }}
                   >
-                    {user.is_banned ? '🚫' : (user.mlbb_ign?.charAt(0) || user.username.charAt(0))}
+                    {user.is_banned ? '🚫' : (user.mlbb_avatar_url
+                      ? <img src={user.mlbb_avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : (user.mlbb_ign?.charAt(0) || user.username.charAt(0)))}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15, color: user.is_banned ? 'var(--neon-red)' : 'var(--text-primary)' }}>

@@ -16,8 +16,8 @@ interface DisputeMatch {
   challenger_claim: string | null;
   opponent_claim: string | null;
   created_at: string;
-  challenger: { id: string; username: string; mlbb_ign: string };
-  opponent: { id: string; username: string; mlbb_ign: string } | null;
+  challenger: { id: string; username: string; mlbb_ign: string; mlbb_server_id?: string; mlbb_zone_id?: string };
+  opponent: { id: string; username: string; mlbb_ign: string; mlbb_server_id?: string; mlbb_zone_id?: string } | null;
 }
 
 interface Dispute {
@@ -216,7 +216,7 @@ export default function AdminDisputesPage() {
                       <div className="stat-card">
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Challenger</div>
                         <div style={{ fontWeight: 700 }}>{match.challenger?.mlbb_ign}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {match.challenger?.mlbb_server_id}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Server: {match.challenger?.mlbb_server_id || '—'} &middot; Zone: {match.challenger?.mlbb_zone_id || '—'}</div>
                         <div style={{ marginTop: 8 }}>
                           <span style={{
                             fontSize: 12,
@@ -250,7 +250,7 @@ export default function AdminDisputesPage() {
                       <div className="stat-card">
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Opponent</div>
                         <div style={{ fontWeight: 700 }}>{match.opponent?.mlbb_ign || '—'}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID: {match.opponent?.mlbb_server_id || '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Server: {match.opponent?.mlbb_server_id || '—'} &middot; Zone: {match.opponent?.mlbb_zone_id || '—'}</div>
                         <div style={{ marginTop: 8 }}>
                           <span style={{
                             fontSize: 12,

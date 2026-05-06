@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import { createServer } from 'http';
 import { env } from './config/env';
 import { initSocket } from './services/socket';
@@ -41,6 +43,11 @@ app.use(express.json({ limit: '10mb' }));
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'good-game-api', version: '1.0.0' });
 });
+
+// Serve uploaded files (dispute evidence, screenshots)
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);

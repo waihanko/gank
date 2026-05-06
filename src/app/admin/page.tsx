@@ -56,13 +56,13 @@ export default function AdminDashboard() {
   }
 
   const STAT_CARDS = [
-    { label: 'Total Users', value: stats?.totalUsers?.toString() || '0', icon: '👥', color: 'var(--accent-primary)' },
+    { label: 'Total Players', value: stats?.totalUsers?.toString() || '0', icon: '👥', color: 'var(--accent-primary)' },
     { label: 'Total Matches', value: stats?.totalMatches?.toString() || '0', icon: '\u2694\ufe0f', color: 'var(--accent-secondary)' },
     { label: 'Active Now', value: stats?.activeMatches?.toString() || '0', icon: '🔥', color: 'var(--neon-red)' },
     { label: 'Total Revenue', value: formatCurrency(stats?.totalRevenue || 0), icon: '💰', color: 'var(--neon-green)' },
     { label: 'Today Matches', value: stats?.todayMatches?.toString() || '0', icon: '📅', color: 'var(--neon-yellow)' },
     { label: 'Today Revenue', value: formatCurrency(stats?.todayRevenue || 0), icon: '💸', color: 'var(--neon-purple)' },
-    { label: 'Available Rooms', value: stats?.rooms?.AVAILABLE?.toString() || '0', icon: '💬', color: 'var(--neon-cyan)' },
+    { label: 'Today Disputes', value: stats?.todayDisputes?.toString() || '0', icon: '🔍', color: (stats?.todayDisputes || 0) > 0 ? 'var(--neon-red)' : 'var(--neon-green)' },
     { label: 'Pending Disputes', value: stats?.pendingDisputes?.toString() || '0', icon: '\u26a0\ufe0f', color: (stats?.pendingDisputes || 0) > 0 ? 'var(--neon-red)' : 'var(--neon-green)' },
   ];
 

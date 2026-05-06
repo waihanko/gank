@@ -107,7 +107,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   if (loading) return <div className="p-8 text-center text-muted">Analyzing profile data...</div>;
-  if (!user) return <div className="p-8 text-center text-muted">User not found.</div>;
+  if (!user) return <div className="p-8 text-center text-muted">Player not found.</div>;
 
   return (
     <div className="page-container">
@@ -117,12 +117,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           onClick={() => router.push('/admin/users')}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          ← Return to Directory
+          ← Return to Players
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
             <img
-              src={user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (user.mlbb_ign || user.username)}
+              src={user.mlbb_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (user.mlbb_ign || user.username)}
               style={{ width: 80, height: 80, borderRadius: 20, border: '2px solid var(--accent-primary)', objectFit: 'cover' }}
             />
             <div>
@@ -140,7 +140,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               🔔 Send Notify
             </button>
             <button className={user.is_banned ? 'btn-secondary' : 'btn-danger'} onClick={() => setShowBan(true)}>
-              {user.is_banned ? 'Unban User' : 'Ban Account'}
+              {user.is_banned ? 'Unban Player' : 'Ban Account'}
             </button>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         <td style={{ padding: '16px 12px' }}>
                           {opponent ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <img src={opponent.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (opponent.mlbb_ign || opponent.username)} style={{ width: 24, height: 24, borderRadius: 6 }} />
+                              <img src={opponent.mlbb_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (opponent.mlbb_ign || opponent.username)} style={{ width: 24, height: 24, borderRadius: 6 }} />
                               <span style={{ fontSize: 14, fontWeight: 600 }}>{opponent.mlbb_ign || opponent.username}</span>
                             </div>
                           ) : (

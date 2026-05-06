@@ -74,7 +74,7 @@ export function initSocket(httpServer: HttpServer): Server {
             media_url: media_url || null,
           },
           include: {
-            sender: { select: { id: true, username: true, mlbb_ign: true, avatar_url: true } }
+            sender: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true } }
           }
         });
 

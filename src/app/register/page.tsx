@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PLATFORM_NAME } from '@/lib/constants';
 
@@ -18,7 +18,16 @@ export default function RegisterPage() {
   const [zoneId, setZoneId] = useState('');
   const [vc, setVc] = useState('');
   const [codeSent, setCodeSent] = useState(false);
+  const [timer, setTimer] = useState(0);
   const [mlbbProfile, setMlbbProfile] = useState<{ mlbb_ign: string; avatar_url: string; level: number; rank_level: number; reg_country: string } | null>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   // State 2
   const [telegramUsername, setTelegramUsername] = useState('');
@@ -28,6 +37,7 @@ export default function RegisterPage() {
   // State 3
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const stepLabels = ['MLBB Identity', 'Telegram', 'Security'];
 
@@ -43,6 +53,7 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!data.success) { setError(data.error); return; }
       setCodeSent(true);
+      setTimer(60);
     } catch {
       setError('Failed to send verification code. Try again.');
     } finally {
@@ -228,11 +239,40 @@ export default function RegisterPage() {
                     </button>
                   ) : (
                     <>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--neon-cyan)', marginBottom: 6 }}>Verification Code (From In-Game Mail)</label>
-                      <input className="input-field" placeholder="Enter 4-digit code" maxLength={4} value={vc} onChange={(e) => setVc(e.target.value)} style={{ marginBottom: 20, letterSpacing: 4, fontWeight: 700 }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--neon-cyan)' }}>Verification Code</label>
+                        {timer > 0 ? (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Resend in {timer}s</span>
+                        ) : (
+                          <button 
+                            onClick={handleSendCode} 
+                            disabled={loading}
+                            style={{ background: 'none', border: 'none', color: 'var(--neon-yellow)', fontSize: 11, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                          >
+                            Resend Code
+                          </button>
+                        )}
+                      </div>
+                      <input className="input-field" placeholder="Enter 4-digit code" maxLength={4} value={vc} onChange={(e) => setVc(e.target.value)} style={{ marginBottom: 8, letterSpacing: 4, fontWeight: 700 }} />
+                      
+                      <div 
+                        onClick={() => setShowInstructions(true)}
+                        style={{ 
+                          fontSize: 11, 
+                          color: 'var(--text-muted)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 4, 
+                          marginBottom: 20, 
+                          cursor: 'pointer',
+                          width: 'fit-content'
+                        }}
+                      >
+                        📖 <span style={{ textDecoration: 'underline' }}>From In-Game Inbox (How to find?)</span>
+                      </div>
 
                       <div style={{ display: 'flex', gap: 12 }}>
-                        <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setCodeSent(false)}>← Back</button>
+                        <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { setCodeSent(false); setTimer(0); }}>← Back</button>
                         <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleVerifyVc} disabled={loading || !vc || vc.length !== 4}>
                           {loading ? '⏳ Verifying...' : 'Verify Code →'}
                         </button>
@@ -411,6 +451,55 @@ export default function RegisterPage() {
           Already have an account? <Link href="/login" style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}>Login →</Link>
         </p>
       </div>
+
+      {/* Instructions Dialog */}
+      {showInstructions && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: 20
+        }} onClick={() => setShowInstructions(false)}>
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
+            borderRadius: 24, maxWidth: 600, width: '100%', padding: 24,
+            position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            animation: 'modalFadeIn 0.3s ease'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 className="font-display" style={{ fontSize: 20, fontWeight: 800 }}>
+                📖 <span className="gradient-text">How to find code?</span>
+              </h3>
+              <button onClick={() => setShowInstructions(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 24, cursor: 'pointer' }}>×</button>
+            </div>
+            
+            <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-secondary)', marginBottom: 20 }}>
+              <img 
+                src="/mlbb_instructions.png" 
+                alt="MLBB Instructions" 
+                style={{ width: '100%', height: 'auto', display: 'block' }} 
+              />
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <p style={{ marginBottom: 10 }}>1. Open <strong>Mobile Legends</strong> on your device.</p>
+              <p style={{ marginBottom: 10 }}>2. Tap the <strong>Mail</strong> icon at the top of the main menu.</p>
+              <p>3. Find the message titled <strong>&quot;Verification Code&quot;</strong> to get your 4-digit code.</p>
+            </div>
+
+            <button className="btn-primary" style={{ width: '100%', marginTop: 24, justifyContent: 'center' }} onClick={() => setShowInstructions(false)}>
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes modalFadeIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </>
   );
 }

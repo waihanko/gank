@@ -8,13 +8,30 @@ import StatusBadge from '@/components/StatusBadge';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
+function PlayerAvatar({ user, size = 64, gradient }: { user: any; size?: number; gradient: string }) {
+  const [err, setErr] = useState(false);
+  const hasAvatar = user?.mlbb_avatar_url && !err;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 16, overflow: 'hidden',
+      background: hasAvatar ? undefined : gradient,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.4, fontWeight: 900, color: 'white',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.3)', flexShrink: 0
+    }}>
+      {hasAvatar
+        ? <img src={user.mlbb_avatar_url} alt="" onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : (user?.mlbb_ign?.charAt(0) || user?.username?.charAt(0) || '?')}
+    </div>
+  );
+}
+
 export default function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { showAlert, showConfirm } = useDialog();
 
   const [match, setMatch] = useState<any>(null);
-  const [group, setGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,24 +52,12 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
         const found = data.data.find((m: any) => m.id === id);
         if (found) {
           setMatch(found);
-          if (found.group_id) {
-            fetchGroup(found.group_id);
-          }
         }
       }
     } catch {
       window.location.href = '/admin/error?message=This match record could not be retrieved from the central database.';
     }
     setLoading(false);
-  }
-
-  async function fetchGroup(groupId: string) {
-    const token = localStorage.getItem('gr_admin_token');
-    try {
-      const res = await fetch(`${API_URL}/api/admin/groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (data.success) setGroup(data.data);
-    } catch {}
   }
 
   async function handleVoid() {
@@ -122,26 +127,10 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40, marginBottom: 40, padding: '0 40px' }}>
               {/* Challenger */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 16,
-                    background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 26,
-                    fontWeight: 900,
-                    color: 'white',
-                    boxShadow: '0 8px 24px var(--accent-glow)'
-                  }}
-                >
-                  {match.challenger?.username?.charAt(0) || '❓'}
-                </div>
+                <PlayerAvatar user={match.challenger} size={64} gradient="linear-gradient(135deg, var(--accent-primary), #6d28d9)" />
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.challenger?.mlbb_ign || 'Unknown'}</div>
-                  <div style={{ fontSize: 14, color: 'var(--accent-primary)', fontWeight: 700 }}>ID: {match.challenger?.mlbb_server_id} ({match.challenger?.mlbb_zone_id})</div>
+                  <div style={{ fontSize: 14, color: 'var(--accent-primary)', fontWeight: 700 }}>Server: {match.challenger?.mlbb_server_id || '—'} &middot; Zone: {match.challenger?.mlbb_zone_id || '—'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                     {getWinRate(match.challenger?.wins || 0, match.challenger?.losses || 0)} Win Rate
                   </div>
@@ -175,7 +164,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                   {match.opponent ? (
                     <>
                       <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 2 }}>{match.opponent.mlbb_ign}</div>
-                      <div style={{ fontSize: 14, color: 'var(--accent-secondary)', fontWeight: 700 }}>ID: {match.opponent.mlbb_server_id} ({match.opponent.mlbb_zone_id})</div>
+                      <div style={{ fontSize: 14, color: 'var(--accent-secondary)', fontWeight: 700 }}>Server: {match.opponent.mlbb_server_id || '—'} &middot; Zone: {match.opponent.mlbb_zone_id || '—'}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                         {getWinRate(match.opponent.wins, match.opponent.losses)} Win Rate
                       </div>
@@ -187,24 +176,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                     </>
                   )}
                 </div>
-                <div
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 16,
-                    background: match.opponent ? 'linear-gradient(135deg, var(--accent-secondary), #0e7490)' : 'var(--bg-tertiary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 26,
-                    fontWeight: 900,
-                    color: 'white',
-                    border: match.opponent ? 'none' : '2px dashed var(--border-secondary)',
-                    boxShadow: match.opponent ? '0 8px 24px var(--accent-cyan-glow)' : 'none'
-                  }}
-                >
-                  {match.opponent ? (match.opponent.mlbb_ign?.charAt(0) || match.opponent.username.charAt(0)) : '❓'}
-                </div>
+                <PlayerAvatar user={match.opponent} size={64} gradient={match.opponent ? 'linear-gradient(135deg, var(--accent-secondary), #0e7490)' : 'var(--bg-tertiary)'} />
               </div>
             </div>
 
@@ -278,34 +250,36 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
               <div style={{ fontSize: 13 }}>Created: {formatDate(match.created_at)}</div>
               {match.completed_at && <div style={{ fontSize: 13, color: 'var(--neon-green)' }}>Finished: {formatDate(match.completed_at)}</div>}
             </div>
-            <div className="glass-card" style={{ padding: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Telegram Battle Group</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: group ? 'var(--neon-green)' : 'var(--text-muted)' }}>
-                  {group ? group.title : match.group_id ? 'Loading Group...' : 'No Group Assigned'}
-                </div>
-                {group?.chat_id && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Chat ID: {group.chat_id}</div>}
+            <div className="glass-card" style={{
+              padding: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              border: '1px solid rgba(6,182,212,0.25)',
+              background: 'linear-gradient(135deg, rgba(6,182,212,0.04), rgba(124,58,237,0.04))'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: 'linear-gradient(135deg, var(--neon-cyan), var(--accent-primary))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18, boxShadow: '0 4px 16px rgba(6,182,212,0.3)'
+                }}>💬</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>Battle Room</div>
               </div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                {group?.invite_link && (
-                  <a 
-                    href={group.invite_link} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="btn-secondary btn-sm"
-                    style={{ width: 'auto', padding: '8px 16px', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
-                  >
-                    Join Group
-                  </a>
-                )}
-                <button 
-                  className="btn-primary btn-sm" 
-                  style={{ width: 'auto', padding: '8px 24px' }}
-                  onClick={() => router.push(`/admin/matches/${match.id}/group`)}
-                >
-                  Check Log
-                </button>
-              </div>
+              <button
+                onClick={() => router.push(`/admin/matches/${match.id}/room`)}
+                style={{
+                  padding: '10px 24px', borderRadius: 12, border: 'none',
+                  background: 'linear-gradient(135deg, var(--neon-cyan), var(--accent-primary))',
+                  color: 'white', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  boxShadow: '0 4px 20px rgba(6,182,212,0.35)',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Check Battle Room
+              </button>
             </div>
           </div>
         </div>

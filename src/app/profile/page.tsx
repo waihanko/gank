@@ -211,7 +211,7 @@ export default function ProfilePage() {
 
   if (loading || !user) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="font-display gradient-text" style={{ fontSize: 20 }}>Loading...</div></div>;
 
-  const p = profile || user;
+  const p = (profile || user) as any;
   const wins = (p.wins as number) || 0;
   const losses = (p.losses as number) || 0;
   const total = wins + losses;

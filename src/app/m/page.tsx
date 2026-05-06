@@ -63,7 +63,7 @@ export default function MobileHomePage() {
 
   // The user's current active/pending match (if any)
   const myLive = myMatches.find(m =>
-    ['PENDING_JOIN', 'ACTIVE', 'ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(m.status)
+    ['PENDING_JOIN', 'ACTIVE', 'ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION', 'DISPUTED'].includes(m.status)
   );
 
   useEffect(() => {
@@ -211,6 +211,7 @@ export default function MobileHomePage() {
                 {myLive.status === 'PENDING_JOIN' && '⏳ Pending Challenge'}
                 {myLive.status === 'ACTIVE' && '🟢 Your Active Challenge'}
                 {myLive.status === 'WAITING' && '🤝 Accepted — Waiting for Telegram'}
+                {myLive.status === 'DISPUTED' && '⚠️ Match Disputed'}
                 {['ACCEPTED', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(myLive.status) && '⚔️ Battle In Progress!'}
               </div>
             </div>
@@ -343,18 +344,22 @@ export default function MobileHomePage() {
               </div>
             )}
 
-            {/* Open Telegram — in-progress statuses */}
-            {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(myLive.status) && (
+            {/* Open Battle Room — in-progress statuses */}
+            {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION', 'DISPUTED'].includes(myLive.status) && (
               <button
                 onClick={() => router.push('/m/battle/' + (myLive as any).id)}
                 style={{
                   width: '100%', padding: '12px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #0088cc, #006ba6)',
+                  background: myLive.status === 'DISPUTED' 
+                    ? 'linear-gradient(135deg, rgba(239,68,68,0.8), #b91c1c)'
+                    : 'linear-gradient(135deg, #0088cc, #006ba6)',
                   color: 'white', fontWeight: 700, fontSize: 13,
-                  boxShadow: '0 4px 14px rgba(0,136,204,0.3)',
+                  boxShadow: myLive.status === 'DISPUTED'
+                    ? '0 4px 14px rgba(239,68,68,0.3)'
+                    : '0 4px 14px rgba(0,136,204,0.3)',
                 }}
               >
-                📱 Open Battle Room
+                {myLive.status === 'DISPUTED' ? '⚠️ View Dispute' : '📱 Open Battle Room'}
               </button>
             )}
 

@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { authMiddleware } from '../middleware/auth';
 import { emitMatchUpdate } from '../services/socket';
 import { getIO } from '../services/socket';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -32,7 +34,7 @@ router.get('/:matchId/messages', authMiddleware, async (req: Request, res: Respo
   const messages = await prisma.battleMessage.findMany({
     where: { match_id: matchId },
     include: {
-      sender: { select: { id: true, username: true, mlbb_ign: true, avatar_url: true } }
+      sender: { select: { id: true, username: true, mlbb_ign: true, mlbb_avatar_url: true } }
     },
     orderBy: { created_at: 'asc' },
     take: 200
@@ -88,12 +90,15 @@ router.post('/:matchId/ready', authMiddleware, async (req: Request, res: Respons
     data: updateData,
   });
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { mlbb_ign: true, username: true } });
+  const displayName = user?.mlbb_ign || user?.username || req.user!.username;
+
   // System message
   const sysMsg = await prisma.battleMessage.create({
     data: {
       match_id: matchId,
       type: 'system',
-      content: `${req.user!.username} is READY!`,
+      content: `${displayName} is READY!`,
     }
   });
   getIO().to(`match:${matchId}`).emit('new-message', sysMsg);
@@ -169,6 +174,8 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
   await prisma.match.update({ where: { id: match.id }, data: claimData });
 
   // System message
+  const claimingUser = await prisma.user.findUnique({ where: { id: userId }, select: { mlbb_ign: true, username: true } });
+  const claimDisplayName = claimingUser?.mlbb_ign || claimingUser?.username || req.user!.username;
   const emoji = claim === 'WON' ? '🏆' : '💀';
   const claimText = claim === 'WON' ? 'claims VICTORY!' : 'concedes defeat.';
   
@@ -176,7 +183,7 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
     data: {
       match_id: matchId,
       type: 'system',
-      content: `${emoji} ${req.user!.username} ${claimText}`,
+      content: `${emoji} ${claimDisplayName} ${claimText}`,
     }
   });
   getIO().to(`match:${matchId}`).emit('new-message', sysMsg);
@@ -213,6 +220,78 @@ router.post('/:matchId/claim', authMiddleware, async (req: Request, res: Respons
   }
 
   res.json({ success: true, message: `Claim ${claim} recorded.` });
+});
+
+// POST /api/battle-room/:matchId/dispute-evidence — Upload dispute evidence images (max 2)
+router.post('/:matchId/dispute-evidence', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const matchId = req.params.matchId as string;
+  const userId = req.user!.userId;
+  const { images } = req.body; // Array of { dataUrl: string, filename: string }
+
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    res.status(400).json({ success: false, error: 'No images provided' });
+    return;
+  }
+
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) { res.status(404).json({ success: false, error: 'Match not found' }); return; }
+  if (match.status !== 'DISPUTED') { res.status(400).json({ success: false, error: 'Match is not in DISPUTED state' }); return; }
+  if (match.challenger_id !== userId && match.opponent_id !== userId) {
+    res.status(403).json({ success: false, error: 'Not a participant' }); return;
+  }
+
+  // Check how many screenshots this user already uploaded for this match
+  const existingCount = await prisma.matchScreenshot.count({ where: { match_id: matchId, uploaded_by: userId } });
+  const allowedCount = Math.min(images.length, 2 - existingCount);
+
+  if (allowedCount <= 0) {
+    res.status(400).json({ success: false, error: 'You have already uploaded the maximum 2 evidence images.' });
+    return;
+  }
+
+  const uploadsDir = path.join(process.cwd(), 'uploads', 'dispute-evidence');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const savedUrls: string[] = [];
+
+  for (let i = 0; i < allowedCount; i++) {
+    const { dataUrl } = images[i];
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) continue;
+
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    const ext = dataUrl.substring('data:image/'.length, dataUrl.indexOf(';base64'));
+    const filename = `${matchId}_${userId}_${Date.now()}_${i}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+
+    fs.writeFileSync(filepath, Buffer.from(base64Data, 'base64'));
+
+    const fileUrl = `/uploads/dispute-evidence/${filename}`;
+
+    await prisma.matchScreenshot.create({
+      data: { match_id: matchId, uploaded_by: userId, file_url: fileUrl }
+    });
+
+    savedUrls.push(fileUrl);
+  }
+
+  // Update the Dispute record's evidence_urls
+  const dispute = await prisma.dispute.findFirst({ where: { match_id: matchId }, orderBy: { created_at: 'desc' } });
+  if (dispute) {
+    await prisma.dispute.update({
+      where: { id: dispute.id },
+      data: { evidence_urls: { push: savedUrls } }
+    });
+  }
+
+  // System message in chat
+  const uploader = await prisma.user.findUnique({ where: { id: userId }, select: { mlbb_ign: true, username: true } });
+  const displayName = uploader?.mlbb_ign || uploader?.username || 'A player';
+  const sysMsg = await prisma.battleMessage.create({
+    data: { match_id: matchId, type: 'system', content: `📸 ${displayName} submitted ${savedUrls.length} evidence image(s) for admin review.` }
+  });
+  getIO().to(`match:${matchId}`).emit('new-message', sysMsg);
+
+  res.json({ success: true, data: { uploaded: savedUrls.length, urls: savedUrls } });
 });
 
 export default router;

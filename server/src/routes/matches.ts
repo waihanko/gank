@@ -46,8 +46,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       } : {}),
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
     },
     orderBy: { created_at: 'desc' },
     take: 50,
@@ -84,7 +84,7 @@ router.get('/leaderboard', async (req: Request, res: Response): Promise<void> =>
   try {
     const topPlayers = await prisma.user.findMany({
       where: { is_banned: false },
-      select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, avatar_url: true },
+      select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, mlbb_avatar_url: true },
       orderBy: { wins: 'desc' },
       take: 10,
     });
@@ -119,8 +119,8 @@ router.get('/my-recent', authMiddleware, async (req: Request, res: Response): Pr
     orderBy: { created_at: 'desc' },
     take: 2,
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
     },
   });
   res.json({ success: true, data: recentMatches });
@@ -137,8 +137,8 @@ router.get('/my-history', authMiddleware, async (req: Request, res: Response): P
       ]
     },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
     },
     orderBy: { created_at: 'desc' },
     take: 100,
@@ -452,8 +452,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   const match = await prisma.match.findUnique({
     where: { id: req.params.id as string },
     include: {
-      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
-      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, avatar_url: true } },
+      challenger: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
+      opponent: { select: { id: true, username: true, mlbb_ign: true, mlbb_server_id: true, mlbb_zone_id: true, wins: true, losses: true, telegram_username: true, telegram_display_name: true, mlbb_avatar_url: true } },
     },
   });
 
