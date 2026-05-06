@@ -37,7 +37,7 @@ function Avatar({ user, size = 40 }: { user: any; size?: number }) {
   return <span style={{ fontSize: size * 0.38, fontWeight: 700 }}>{name.replace('@', '').charAt(0).toUpperCase()}</span>;
 }
 
-function AvatarBox({ user, size = 40, gradient = 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' }: { user: any; size?: number; gradient?: string }) {
+function AvatarBox({ user, size = 40, gradient = 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' }: { user: any; size?: number; gradient?: string }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.28,
@@ -154,7 +154,7 @@ export default function MobileBattleHistoryPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   <AvatarBox user={opponent} size={42} />
-                  
+
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--neon-yellow)', marginRight: 4, fontStyle: 'italic' }}>vs</span> {opponent?.username || 'Waiting...'}
@@ -166,9 +166,9 @@ export default function MobileBattleHistoryPage() {
                 </div>
 
                 <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div className="font-display" style={{ 
-                    fontSize: 15, fontWeight: 800, 
-                    color: won ? 'var(--neon-green)' : lost ? 'var(--neon-red)' : 'var(--neon-yellow)' 
+                  <div className="font-display" style={{
+                    fontSize: 15, fontWeight: 800,
+                    color: won ? 'var(--neon-green)' : lost ? 'var(--neon-red)' : 'var(--neon-yellow)'
                   }}>
                     {won ? '+' : lost ? '-' : ''}{formatCurrency(m.stake_amount)}
                   </div>

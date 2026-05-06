@@ -402,7 +402,9 @@ router.post('/:id/accept', authMiddleware, async (req: Request, res: Response): 
       });
 
       const totalPot = stakeAmount * 2;
-      const commission = totalPot * 0.05;
+      const { getCommissionRate } = await import('../services/settings');
+      const rate = await getCommissionRate();
+      const commission = totalPot * rate;
 
       return tx.match.update({
         where: { id: matchId },

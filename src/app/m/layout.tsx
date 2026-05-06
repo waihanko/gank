@@ -24,8 +24,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
       }}>
         <div style={{
           position: 'absolute',
-          top: '-20%',
-          right: '-10%',
+          top: '-150px',
+          right: '-150px',
           width: 300,
           height: 300,
           background: 'radial-gradient(circle, rgba(124,58,237,0.12), transparent 70%)',
@@ -33,8 +33,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         }} />
         <div style={{
           position: 'absolute',
-          bottom: '15%',
-          left: '-10%',
+          bottom: '-125px',
+          left: '-125px',
           width: 250,
           height: 250,
           background: 'radial-gradient(circle, rgba(6,182,212,0.08), transparent 70%)',

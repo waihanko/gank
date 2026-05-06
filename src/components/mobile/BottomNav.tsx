@@ -86,7 +86,7 @@ export default function MobileBottomNav() {
                 transform: 'translateX(-50%)',
                 width: 32,
                 height: 2,
-                background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))',
+                background: 'linear-gradient(90deg, var(--accent-secondary), var(--accent-primary))',
                 borderRadius: '0 0 4px 4px',
               }} />
             )}

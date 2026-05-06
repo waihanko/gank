@@ -223,6 +223,7 @@ model PlatformRevenue {
   id         String   @id @default(uuid())
   match_id   String
   amount     Decimal  @db.Decimal(12, 2)
+  rate       Decimal  @default(0.05) @db.Decimal(5, 4)
   created_at DateTime @default(now())
 
   match Match @relation(fields: [match_id], references: [id])
@@ -269,4 +270,26 @@ model AdminWallet {
   updated_at      DateTime @updatedAt
 
   @@map("admin_wallets")
+}
+
+model Announcement {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  image_url  String?
+  link_url   String?
+  starts_at  DateTime @default(now())
+  ends_at    DateTime
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("announcements")
+}
+model SystemSetting {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt
+
+  @@map("system_settings")
 }

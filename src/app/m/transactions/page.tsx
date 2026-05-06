@@ -131,7 +131,7 @@ export default function MobileTransactionsPage() {
               style={{
                 padding: '9px 4px', borderRadius: 10, border: 'none', cursor: 'pointer',
                 fontWeight: 700, fontSize: 12,
-                background: filter === f.key ? 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' : 'var(--bg-tertiary)',
+                background: filter === f.key ? 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' : 'var(--bg-tertiary)',
                 color: filter === f.key ? 'white' : 'var(--text-muted)',
                 transition: 'all 0.2s',
               }}

@@ -1,6 +1,6 @@
 'use client';
 
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, shortenId } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -134,7 +134,7 @@ export default function AdminTransactionsPage() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>User (IGN)</th>
+                <th>Player (IGN)</th>
                 <th>Type</th>
                 <th>Amount</th>
                 <th>Match</th>
@@ -148,7 +148,8 @@ export default function AdminTransactionsPage() {
                   <tr key={tx.id}>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(tx.created_at)}</td>
                     <td style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
-                      {tx.user?.mlbb_ign || tx.user?.username || tx.user_id}
+                      <div>{tx.user?.mlbb_ign || 'Unknown'}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>{tx.user?.telegram_display_name || 'No Telegram Name'}</div>
                     </td>
                     <td>
                       <span style={{ color: config.color, fontWeight: 700, fontSize: 11, background: `${config.color}15`, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
@@ -159,7 +160,7 @@ export default function AdminTransactionsPage() {
                       {formatCurrency(tx.amount)}
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: tx.match_id ? 'var(--neon-yellow)' : 'var(--text-muted)' }}>
-                      {tx.match_id || '---'}
+                      {tx.match_id ? shortenId(tx.match_id) : '---'}
                     </td>
                     <td style={{ fontSize: 13, maxWidth: 300, lineHeight: 1.4 }}>{tx.description}</td>
                   </tr>

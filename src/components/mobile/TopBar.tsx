@@ -124,7 +124,7 @@ export default function MobileTopBar() {
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 30, height: 30, borderRadius: 9,
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+            background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
           }}>
             👻
@@ -195,7 +195,7 @@ export default function MobileTopBar() {
           ) : (
             <Link href="/login" style={{
               padding: '6px 14px', borderRadius: 20,
-              background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+              background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
               color: 'white', fontSize: 12, fontWeight: 700, textDecoration: 'none',
             }}>
               Login

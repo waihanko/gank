@@ -56,14 +56,15 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
+
   /* Prevent long press copy and selection on mobile */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-input, textarea {
+input,
+textarea {
   -webkit-touch-callout: default;
   -webkit-user-select: auto;
   user-select: auto;
@@ -75,9 +76,11 @@ input, textarea {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-primary);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--accent-primary);
   border-radius: 3px;
@@ -94,6 +97,7 @@ input, textarea {
   border-radius: 16px;
   transition: all 0.3s ease;
 }
+
 .glass-card:hover {
   border-color: var(--border-primary);
   box-shadow: 0 0 30px var(--accent-glow);
@@ -124,7 +128,7 @@ input, textarea {
   align-items: center;
   gap: 8px;
   padding: 12px 28px;
-  background: linear-gradient(135deg, var(--accent-primary), #6d28d9);
+  background: var(--accent-primary);
   color: white;
   font-weight: 600;
   font-size: 14px;
@@ -136,18 +140,21 @@ input, textarea {
   position: relative;
   overflow: hidden;
 }
+
 .btn-primary::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+  background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
   opacity: 0;
   transition: opacity 0.3s;
 }
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px var(--accent-glow);
 }
+
 .btn-primary:hover::before {
   opacity: 1;
 }
@@ -167,6 +174,7 @@ input, textarea {
   transition: all 0.3s ease;
   text-decoration: none;
 }
+
 .btn-secondary:hover {
   border-color: var(--accent-primary);
   box-shadow: 0 0 20px var(--accent-glow);
@@ -187,6 +195,7 @@ input, textarea {
   cursor: pointer;
   transition: all 0.3s ease;
 }
+
 .btn-danger:hover {
   box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
   transform: translateY(-1px);
@@ -206,6 +215,7 @@ input, textarea {
   cursor: pointer;
   transition: all 0.3s ease;
 }
+
 .btn-success:hover {
   box-shadow: 0 8px 25px rgba(22, 163, 74, 0.4);
   transform: translateY(-1px);
@@ -246,12 +256,10 @@ input, textarea {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent);
   transition: 0.5s;
 }
 
@@ -306,7 +314,7 @@ input, textarea {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -321,7 +329,7 @@ input, textarea {
   justify-content: center;
   gap: 10px;
   padding: 12px 32px;
-  background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+  background: var(--accent-primary);
   color: white;
   font-weight: 800;
   font-size: 15px;
@@ -347,7 +355,7 @@ input, textarea {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   transform: translateX(-100%);
   transition: transform 0.6s;
 }
@@ -357,9 +365,17 @@ input, textarea {
 }
 
 @keyframes battle-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-  70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 /* ========================
@@ -376,6 +392,7 @@ input, textarea {
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
+
 .status-badge::before {
   content: '';
   width: 6px;
@@ -386,8 +403,15 @@ input, textarea {
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* ========================
@@ -398,11 +422,13 @@ input, textarea {
   border-collapse: separate;
   border-spacing: 0;
 }
+
 .data-table thead {
   position: sticky;
   top: 0;
   z-index: 10;
 }
+
 .data-table th {
   padding: 14px 16px;
   text-align: left;
@@ -414,6 +440,7 @@ input, textarea {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-secondary);
 }
+
 .data-table td {
   padding: 14px 16px;
   font-size: 14px;
@@ -421,6 +448,7 @@ input, textarea {
   border-bottom: 1px solid var(--border-secondary);
   transition: background 0.2s;
 }
+
 .data-table tbody tr:hover td {
   background: var(--glass-highlight);
 }
@@ -440,19 +468,22 @@ input, textarea {
   transition: all 0.3s;
   outline: none;
 }
+
 .input-field:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
+
 .input-field::placeholder {
   color: var(--text-muted);
 }
+
 .input-field:-webkit-autofill,
-.input-field:-webkit-autofill:hover, 
-.input-field:-webkit-autofill:focus, 
-.input-field:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px var(--bg-tertiary) inset !important;
-    -webkit-text-fill-color: var(--text-primary) !important;
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus,
+.input-field:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-tertiary) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 /* ========================
@@ -468,6 +499,7 @@ input, textarea {
   overflow: hidden;
   transition: all 0.3s ease;
 }
+
 .stat-card::before {
   content: '';
   position: absolute;
@@ -479,11 +511,13 @@ input, textarea {
   opacity: 0;
   transition: opacity 0.3s;
 }
+
 .stat-card:hover {
   transform: translateY(-4px);
   border-color: var(--border-primary);
   box-shadow: 0 12px 40px var(--accent-glow);
 }
+
 .stat-card:hover::before {
   opacity: 1;
 }
@@ -492,18 +526,37 @@ input, textarea {
    Animations
    ======================== */
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px var(--accent-glow); }
-  50% { box-shadow: 0 0 40px var(--accent-glow), 0 0 60px var(--accent-cyan-glow); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 40px var(--accent-glow), 0 0 60px var(--accent-cyan-glow);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes fadeInUp {
@@ -511,10 +564,41 @@ input, textarea {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-float {
@@ -530,7 +614,7 @@ input, textarea {
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -574,10 +658,13 @@ input, textarea {
   .glass-card {
     border-radius: 12px;
   }
-  .btn-primary, .btn-secondary {
+
+  .btn-primary,
+  .btn-secondary {
     padding: 10px 20px;
     font-size: 13px;
   }
+
   .desktop-only {
     display: none !important;
   }

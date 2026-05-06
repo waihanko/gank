@@ -144,7 +144,7 @@ export default function AdminDetailPage({ params }: { params: Promise<{ id: stri
             width: 100, 
             height: 100, 
             borderRadius: 32, 
-            background: admin.role === 'SUPER_ADMIN' ? 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' : 'var(--bg-tertiary)',
+            background: admin.role === 'SUPER_ADMIN' ? 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' : 'var(--bg-tertiary)',
             margin: '0 auto 24px',
             display: 'flex',
             alignItems: 'center',

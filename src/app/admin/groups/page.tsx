@@ -156,7 +156,7 @@ export default function AdminGroupsPage() {
                         width: 48,
                         height: 48,
                         borderRadius: 14,
-                        background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                        background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

@@ -26,7 +26,7 @@ function Avatar({ user, size = 40 }: { user: any; size?: number }) {
   return <span style={{ fontSize: size * 0.38, fontWeight: 700 }}>{name.replace('@', '').charAt(0).toUpperCase()}</span>;
 }
 
-function AvatarBox({ user, size = 40, gradient = 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' }: { user: any; size?: number; gradient?: string }) {
+function AvatarBox({ user, size = 40, gradient = 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' }: { user: any; size?: number; gradient?: string }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.28,
@@ -233,7 +233,7 @@ export default function MobileMatchesPage() {
                     onClick={() => handleAccept(match.id)}
                     style={{
                       marginTop: 12, width: '100%', padding: '11px', borderRadius: 10, border: 'none',
-                      background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                      background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                       color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer',
                       boxShadow: '0 4px 12px var(--accent-glow)',
                     }}
@@ -344,7 +344,7 @@ export default function MobileMatchesPage() {
                 width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: 'pointer',
                 background: creating || !stakeInput || Number(stakeInput) < 1000
                   ? 'var(--bg-tertiary)'
-                  : 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                  : 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                 color: creating || !stakeInput || Number(stakeInput) < 1000 ? 'var(--text-muted)' : 'white',
                 fontWeight: 700, fontSize: 15,
                 boxShadow: creating || !stakeInput ? 'none' : '0 6px 24px var(--accent-glow)',

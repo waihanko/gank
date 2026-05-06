@@ -167,7 +167,7 @@ export default function AdminsPage() {
                   width: 52, 
                   height: 52, 
                   borderRadius: 16, 
-                  background: admin.role === 'SUPER_ADMIN' ? 'linear-gradient(135deg, var(--accent-primary), #6d28d9)' : 'var(--bg-tertiary)',
+                  background: admin.role === 'SUPER_ADMIN' ? 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' : 'var(--bg-tertiary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

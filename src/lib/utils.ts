@@ -55,8 +55,6 @@ export function formatDuration(start: string, end: string): string {
 }
 
 export function shortenId(id: string): string {
-  if (id.length <= 12) return '#' + id;
-  const prefix = id.substring(0, 4);
-  const suffix = id.substring(id.length - 3);
-  return `#${prefix}...${suffix}`;
+  if (!id) return '';
+  return id.substring(id.length - 8);
 }

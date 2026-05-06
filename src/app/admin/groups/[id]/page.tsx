@@ -183,7 +183,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   width: 64,
                   height: 64,
                   borderRadius: 18,
-                  background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                  background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

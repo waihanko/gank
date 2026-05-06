@@ -53,6 +53,7 @@ export default function MobileHomePage() {
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [myMatches, setMyMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats>({ totalMatches: 0, totalUsers: 0, totalPrizePool: 0 });
+  const [commissionRate, setCommissionRate] = useState(0.05);
   const [liveCount, setLiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -88,12 +89,13 @@ export default function MobileHomePage() {
 
   async function load() {
     const headers: any = token ? { Authorization: `Bearer ${token}` } : {};
-    const [liveRes, statsRes, myRes] = await Promise.all([
+    const [liveRes, statsRes, myRes, configRes] = await Promise.all([
       fetch(`${API_URL}/api/matches?status=ACTIVE`, { headers }).then(r => r.json()).catch(() => ({ success: false })),
       fetch(`${API_URL}/api/matches/stats`).then(r => r.json()).catch(() => ({ success: false })),
       token
         ? fetch(`${API_URL}/api/matches/my-recent`, { headers }).then(r => r.json()).catch(() => ({ success: false }))
         : Promise.resolve({ success: false }),
+      fetch(`${API_URL}/api/config`).then(r => r.json()).catch(() => ({ success: false })),
     ]);
     // Only show ACTIVE matches with no opponent yet (truly joinable), exclude own challenges
     if (liveRes.success) {
@@ -103,6 +105,7 @@ export default function MobileHomePage() {
     }
     if (statsRes.success) setStats(statsRes.data);
     if (myRes.success) setMyMatches(myRes.data);
+    if (configRes.success) setCommissionRate(configRes.data.commissionRate);
     setLoading(false);
   }
 
@@ -544,7 +547,7 @@ export default function MobileHomePage() {
                           {formatCurrency(match.stake_amount)}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--neon-green)', marginTop: 1 }}>
-                          Win {formatCurrency(match.stake_amount * 2 * 0.95)}
+                          Win {formatCurrency(match.stake_amount * 2 * (1 - commissionRate))}
                         </div>
                       </div>
                     </div>
@@ -612,7 +615,7 @@ export default function MobileHomePage() {
                 {[
                   { label: 'Your Stake', value: formatCurrency(Number(stakeInput)) },
                   { label: 'Total Pot', value: formatCurrency(Number(stakeInput) * 2) },
-                  { label: 'You Win', value: formatCurrency(Number(stakeInput) * 2 * 0.95), color: 'var(--neon-green)' },
+                  { label: 'You Win', value: formatCurrency(Number(stakeInput) * 2 * (1 - commissionRate)), color: 'var(--neon-green)' },
                 ].map(row => (
                   <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                     <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>

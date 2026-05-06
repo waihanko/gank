@@ -1,6 +1,6 @@
 'use client';
 
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, shortenId } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -46,7 +46,7 @@ export default function AdminRevenuePage() {
           💰 <span className="gradient-text">Revenue Analytics</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
-          Platform earnings from the 5% commission model
+          Platform earnings from the dynamic commission model
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default function AdminRevenuePage() {
           <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-cyan)' }}>
             {formatCurrency(Math.round(avgCommission))}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>5% commission rate</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Avg earnings per match</div>
         </div>
 
         <div className="stat-card">
@@ -86,14 +86,18 @@ export default function AdminRevenuePage() {
               <tr>
                 <th>Date</th>
                 <th>Match ID</th>
+                <th>Fee %</th>
                 <th>Amount</th>
               </tr>
             </thead>
             <tbody>
-              {items.slice(0, 20).map((item: any) => (
+              {items.slice(0, 50).map((item: any) => (
                 <tr key={item.id}>
                   <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatDate(item.created_at)}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--neon-yellow)' }}>{item.match_id}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--neon-yellow)' }}>{shortenId(item.match_id)}</td>
+                  <td style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    {(Number(item.rate) * 100).toFixed(0)}%
+                  </td>
                   <td className="font-display" style={{ fontWeight: 800, color: 'var(--neon-green)', fontSize: 14 }}>
                     {formatCurrency(item.amount)}
                   </td>
@@ -124,26 +128,26 @@ export default function AdminRevenuePage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <span>3.</span>
-                <span>Platform takes 5% commission = 500 MMK</span>
+                <span>Platform takes commission % = variable</span>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <span>4.</span>
-                <span>Winner receives 95% = 9,500 MMK</span>
+                <span>Winner receives total pot minus commission</span>
               </div>
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Penalty Fees</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Dynamic Rules</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               <div>
-                <span style={{ color: 'var(--neon-green)' }}>No Ready Click:</span> 100% refund, no fee
+                <span style={{ color: 'var(--neon-green)' }}>Standard Match:</span> Commission rate applied at match acceptance.
               </div>
               <div>
-                <span style={{ color: 'var(--neon-yellow)' }}>No Submission (15min timeout):</span> Room Occupancy Fee of 500 MMK each
+                <span style={{ color: 'var(--neon-yellow)' }}>Dispute (Awarded):</span> Standard commission taken from the winner's payout.
               </div>
               <div>
-                <span style={{ color: 'var(--neon-red)' }}>Malicious Lying:</span> Permanent ban + full payout to honest player
+                <span style={{ color: 'var(--neon-red)' }}>Void & Collect:</span> 100% of the total pot is collected by the platform.
               </div>
             </div>
           </div>

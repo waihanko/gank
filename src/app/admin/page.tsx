@@ -120,7 +120,7 @@ export default function AdminDashboard() {
                   <td>
                     <span style={{ fontWeight: 600, fontSize: 13 }}>
                       {match.challenger?.mlbb_ign || match.challenger?.username}
-                      <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>vs</span>
+                      <span style={{ color: 'var(--neon-yellow)', margin: '0 4px', fontStyle: 'italic' }}>vs</span>
                       {match.opponent?.mlbb_ign || match.opponent?.username || '—'}
                     </span>
                   </td>

@@ -8,7 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StatusBadge from '@/components/StatusBadge';
-import { formatCurrency, getWinRate, formatRelativeTime } from '@/lib/utils';
+import { formatCurrency, getWinRate, formatRelativeTime, shortenId } from '@/lib/utils';
 import { useDialog } from '@/lib/dialog-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -46,6 +46,7 @@ export default function MatchesPage() {
   const [deleting, setDeleting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [commissionRate, setCommissionRate] = useState(0.05);
 
   // Auto-delete confirmation dialog
   const [autoDeleteDialog, setAutoDeleteDialog] = useState<{
@@ -58,12 +59,21 @@ export default function MatchesPage() {
   useEffect(() => {
     fetchMatches();
     fetchMyLive();
+    fetchConfig();
     const interval = setInterval(() => {
       fetchMatches();
       fetchMyLive();
     }, 5000);
     return () => clearInterval(interval);
   }, [token]);
+
+  async function fetchConfig() {
+    try {
+      const res = await fetch(`${API_URL}/api/config`);
+      const data = await res.json();
+      if (data.success) setCommissionRate(data.data.commissionRate);
+    } catch {}
+  }
 
   useEffect(() => {
     const pendingMatch = myRecentMatches.find((m) => m.status === 'PENDING_JOIN' && m.challenger_id === user?.id);
@@ -279,7 +289,7 @@ export default function MatchesPage() {
               
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>#{match.id.slice(0, 5)}...{match.id.slice(-3)}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>#{shortenId(match.id)}</span>
                 <StatusBadge status={match.status} />
               </div>
 
@@ -467,7 +477,7 @@ export default function MatchesPage() {
             <div key={match.id} className="glass-card" style={{ padding: 24 }}>
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>#{match.id.slice(0, 5)}...{match.id.slice(-3)}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>#{shortenId(match.id)}</span>
                 <StatusBadge status={match.status} />
               </div>
 
@@ -588,7 +598,7 @@ export default function MatchesPage() {
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Winner Gets</div>
                   <div className="font-display" style={{ fontSize: 20, fontWeight: 700, color: 'var(--neon-green)' }}>
-                    {formatCurrency(match.stake_amount * 2 * 0.95)}
+                    {formatCurrency(match.stake_amount * 2 * (1 - commissionRate))}
                   </div>
                 </div>
               </div>
@@ -736,13 +746,13 @@ export default function MatchesPage() {
                   <span>{formatCurrency(Number(stakeInput) * 2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>
-                  <span>Platform Fee (5%)</span>
-                  <span>{formatCurrency(Number(stakeInput) * 2 * 0.05)}</span>
+                  <span>Platform Fee ({(commissionRate * 100).toFixed(0)}%)</span>
+                  <span>{formatCurrency(Number(stakeInput) * 2 * commissionRate)}</span>
                 </div>
                 <div style={{ borderTop: '1px solid var(--border-secondary)', paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 14, fontWeight: 700 }}>Winner Receives</span>
                   <span className="gradient-text-gold font-display" style={{ fontSize: 18, fontWeight: 700 }}>
-                    {formatCurrency(Number(stakeInput) * 2 * 0.95)}
+                    {formatCurrency(Number(stakeInput) * 2 * (1 - commissionRate))}
                   </span>
                 </div>
               </div>

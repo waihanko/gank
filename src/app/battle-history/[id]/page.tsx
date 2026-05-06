@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { formatCurrency, formatDate, formatRelativeTime, getWinRate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatRelativeTime, getWinRate, shortenId } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -85,7 +85,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
               <div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: 4 }}>
-                  MATCH ID: {match.id.slice(0, 12)}...
+                  MATCH ID: {shortenId(match.id)}
                 </div>
                 <StatusBadge status={match.status} />
               </div>
@@ -104,7 +104,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
                     width: 64,
                     height: 64,
                     borderRadius: 16,
-                    background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                    background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

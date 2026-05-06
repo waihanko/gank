@@ -499,7 +499,14 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
       }
 
       // Record commission
-      await tx.platformRevenue.create({ data: { match_id: match.id, amount: Number(match.commission) } });
+      const rateUsed = Number(match.total_pot) > 0 ? Number(match.commission) / Number(match.total_pot) : 0.05;
+      await tx.platformRevenue.create({ 
+        data: { 
+          match_id: match.id, 
+          amount: Number(match.commission),
+          rate: rateUsed
+        } 
+      });
 
       const winnerWallet = winner_id === match.challenger_id ? (match.challenger as any).wallet : (match.opponent as any).wallet;
 
@@ -575,7 +582,7 @@ router.post('/disputes/:id/resolve', async (req: Request, res: Response): Promis
 
       // Record full pot as platform revenue
       await tx.platformRevenue.create({
-        data: { match_id: match.id, amount: Number(match.total_pot) },
+        data: { match_id: match.id, amount: Number(match.total_pot), rate: 1.0 },
       });
 
       await tx.notification.create({ data: { user_id: match.challenger_id, title: 'Match Voided — Stakes Collected ⚠️', message: 'An admin voided this disputed match. Due to the dispute, stakes have been collected by the platform.' } });
@@ -826,7 +833,7 @@ router.delete('/groups/:id', async (req: Request, res: Response): Promise<void> 
 // GET /admin/transactions
 router.get('/transactions', async (_req: Request, res: Response): Promise<void> => {
   const transactions = await prisma.transaction.findMany({
-    include: { user: { select: { username: true, mlbb_ign: true } } },
+    include: { user: { select: { username: true, mlbb_ign: true, telegram_display_name: true } } },
     orderBy: { created_at: 'desc' },
     take: 100,
   });
@@ -842,6 +849,27 @@ router.get('/revenue', async (_req: Request, res: Response): Promise<void> => {
   });
   const total = await prisma.platformRevenue.aggregate({ _sum: { amount: true } });
   res.json({ success: true, data: { items: revenue, total: total._sum.amount || 0 } });
+});
+
+// GET /admin/settings — get all system settings
+router.get('/settings', async (_req: Request, res: Response): Promise<void> => {
+  const settings = await prisma.systemSetting.findMany();
+  res.json({ success: true, data: settings });
+});
+
+// PUT /admin/settings — update or create a system setting
+router.put('/settings', async (req: Request, res: Response): Promise<void> => {
+  const { key, value } = req.body;
+  if (!key || value === undefined) {
+    res.status(400).json({ success: false, error: 'Key and value required' });
+    return;
+  }
+  const setting = await prisma.systemSetting.upsert({
+    where: { key },
+    update: { value: String(value) },
+    create: { key, value: String(value) },
+  });
+  res.json({ success: true, data: setting });
 });
 
 export default router;

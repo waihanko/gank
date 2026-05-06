@@ -14,6 +14,9 @@ const ICON_MAP: Record<string, string> = {
   DollarSign: '💰',
   ShieldAccount: '🛡️',
   Wallet: '👜',
+  WalletSettings: '💳',
+  Megaphone: '📢',
+  Settings: '⚙️',
 };
 
 import { useEffect, useState } from 'react';

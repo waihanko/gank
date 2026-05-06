@@ -25,7 +25,7 @@ function AvatarBox({ user, size = 40 }: { user: any; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.28, flexShrink: 0,
-      background: user?.avatar_url && !err ? undefined : 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+      background: user?.avatar_url && !err ? undefined : 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden', fontSize: size * 0.38, fontWeight: 700,
     }}>
@@ -176,7 +176,7 @@ export default function MobileLiveChallengesPage() {
                   <Link href={`/m/battle/${match.id}`} style={{
                     display: 'block', textAlign: 'center',
                     padding: '12px', borderRadius: 12, textDecoration: 'none',
-                    background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                    background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                     color: 'white', fontWeight: 700, fontSize: 14,
                     boxShadow: '0 4px 16px var(--accent-glow)',
                   }}>

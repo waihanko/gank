@@ -65,7 +65,15 @@ export async function resolveMatchClaims(matchId: string) {
           where: { user_id: loserId },
           data: { frozen_amount: { decrement: stakeAmount } },
         });
-        await tx.platformRevenue.create({ data: { match_id: matchId, amount: Number(match.commission) } });
+
+        const rateUsed = Number(match.total_pot) > 0 ? Number(match.commission) / Number(match.total_pot) : 0.05;
+        await tx.platformRevenue.create({ 
+          data: { 
+            match_id: matchId, 
+            amount: Number(match.commission),
+            rate: rateUsed
+          } 
+        });
 
         const winnerWallet = winnerId === match.challenger_id ? match.challenger?.wallet : match.opponent?.wallet;
 

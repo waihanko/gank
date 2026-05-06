@@ -166,7 +166,7 @@ export default function RegisterPage() {
         padding: '0 24px', height: 60, display: 'flex', alignItems: 'center',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👻</div>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👻</div>
           <span className="font-display" style={{ fontSize: 16, fontWeight: 800, letterSpacing: 2 }}>
             <span className="gradient-text">{PLATFORM_NAME.toUpperCase()}</span>
           </span>
@@ -191,7 +191,7 @@ export default function RegisterPage() {
                   width: 32,
                   height: 32,
                   borderRadius: '50%',
-                  background: step >= s ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))' : 'var(--bg-tertiary)',
+                  background: step >= s ? 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))' : 'var(--bg-tertiary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

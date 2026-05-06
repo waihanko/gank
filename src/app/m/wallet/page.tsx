@@ -237,7 +237,7 @@ export default function MobileWalletPage() {
                 onClick={() => { setConfirmDialog({ show: true, txId: tx.id, amount: Number(tx.amount) }); setConfirmCode(''); setConfirmError(''); }}
                 style={{
                   padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                  background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                   color: 'white', fontSize: 12, fontWeight: 700,
                 }}
               >
@@ -292,7 +292,7 @@ export default function MobileWalletPage() {
                 disabled={confirmCode.length !== 6 || confirmLoading}
                 style={{
                   flex: 2, padding: '13px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                  background: confirmCode.length !== 6 || confirmLoading ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+                  background: confirmCode.length !== 6 || confirmLoading ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                   color: confirmCode.length !== 6 || confirmLoading ? 'var(--text-muted)' : 'white',
                   fontWeight: 700, fontSize: 14,
                 }}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StatusBadge from '@/components/StatusBadge';
-import { formatCurrency, getWinRate } from '@/lib/utils';
+import { formatCurrency, getWinRate, shortenId } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -60,6 +60,7 @@ export default function HomePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [topPlayers, setTopPlayers] = useState<Player[]>([]);
   const [stats, setStats] = useState<Stats>({ totalMatches: 0, totalUsers: 0, totalPrizePool: 0 });
+  const [commissionRate, setCommissionRate] = useState(0.05);
 
   useEffect(() => {
     // Fetch live challenges
@@ -83,6 +84,14 @@ export default function HomePage() {
       .then(r => r.json())
       .then(d => {
         if (d.success) setStats(d.data);
+      })
+      .catch(() => {});
+
+    // Fetch public config
+    fetch(`${API_URL}/api/config`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setCommissionRate(d.data.commissionRate);
       })
       .catch(() => {});
   }, []);
@@ -189,7 +198,7 @@ export default function HomePage() {
               { value: stats.totalMatches > 0 ? `${stats.totalMatches}+` : '—', label: 'Matches Completed' },
               { value: stats.totalUsers > 0 ? `${stats.totalUsers}` : '—', label: 'Active Players' },
               { value: stats.totalPrizePool > 0 ? formatCurrency(stats.totalPrizePool) : '—', label: 'Total Prize Pool' },
-              { value: '5%', label: 'Platform Fee' },
+              { value: `${(commissionRate * 100).toFixed(0)}%`, label: 'Platform Fee' },
             ].map((stat) => (
               <div key={stat.label} style={{ textAlign: 'center' }}>
                 <div className="font-display gradient-text" style={{ fontSize: 28, fontWeight: 800 }}>
@@ -221,7 +230,7 @@ export default function HomePage() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>🏜️</div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No live challenges right now</div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>Be the first to create one!</div>
-            <Link href="/matches" className="btn-primary">🚀 Create Challenge</Link>
+            <Link href="/matches" className="btn-battle btn-battle-pulse">🚀 Create Challenge</Link>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
@@ -234,7 +243,7 @@ export default function HomePage() {
                         width: 44,
                         height: 44,
                         borderRadius: 12,
-                        background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                        background: 'linear-gradient(135deg, var(--accent-secondary), var(--accent-primary))',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -270,7 +279,7 @@ export default function HomePage() {
                     {formatCurrency(match.stake_amount)}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Winner gets {formatCurrency(match.stake_amount * 2 * 0.95)}
+                    Winner gets {formatCurrency(match.stake_amount * 2 * (1 - commissionRate))}
                   </div>
                 </div>
 
@@ -383,7 +392,7 @@ export default function HomePage() {
                     width: 64,
                     height: 64,
                     borderRadius: 16,
-                    background: `linear-gradient(135deg, ${i === 0 ? '#f59e0b, #fbbf24' : 'var(--accent-primary), var(--accent-secondary)'})`,
+                    background: `linear-gradient(135deg, ${i === 0 ? '#f59e0b, #fbbf24' : 'var(--accent-secondary), var(--accent-primary)'})`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -439,7 +448,7 @@ export default function HomePage() {
           <p style={{ color: 'var(--text-muted)', fontSize: 15, marginBottom: 32, maxWidth: 400, margin: '0 auto 32px' }}>
             Create a challenge with your custom stake and let Good Game handle the rest.
           </p>
-          <Link href="/matches" className="btn-primary" style={{ fontSize: 16, padding: '16px 40px' }}>
+          <Link href="/matches" className="btn-battle btn-battle-pulse" style={{ fontSize: 16, padding: '16px 40px' }}>
             🚀 Create Challenge
           </Link>
         </div>

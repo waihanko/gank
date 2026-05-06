@@ -15,6 +15,7 @@ import usersRoutes from './routes/users';
 import notificationsRoutes from './routes/notifications';
 import battleRoomRoutes from './routes/battle-room';
 import adminWalletRoutes from './routes/admin-wallets';
+import announcementsRoutes from './routes/announcements';
 import { authMiddleware } from './middleware/auth';
 
 const app = express();
@@ -59,6 +60,14 @@ app.use('/api/users', usersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/battle-room', battleRoomRoutes);
 app.use('/api/admin/wallets', adminWalletRoutes);
+app.use('/api/announcements', announcementsRoutes);
+
+// Public Config
+app.get('/api/config', async (_req, res) => {
+  const { getCommissionRate } = await import('./services/settings');
+  const commissionRate = await getCommissionRate();
+  res.json({ success: true, data: { commissionRate } });
+});
 
 // Telegram bot (polling mode for local dev)
 const bot = createBot();

@@ -31,20 +31,20 @@ export default function RootLayout({
         <div
           className="bg-glow-orb desktop-only-bg"
           style={{
-            width: 500,
-            height: 500,
-            top: '-10%',
-            right: '-5%',
+            width: 600,
+            height: 600,
+            top: '-300px',
+            right: '-300px',
             background: 'radial-gradient(circle, rgba(124,58,237,0.15), transparent 70%)',
           }}
         />
         <div
           className="bg-glow-orb desktop-only-bg"
           style={{
-            width: 400,
-            height: 400,
-            bottom: '10%',
-            left: '-5%',
+            width: 500,
+            height: 500,
+            bottom: '-250px',
+            left: '-250px',
             background: 'radial-gradient(circle, rgba(6,182,212,0.1), transparent 70%)',
           }}
         />
