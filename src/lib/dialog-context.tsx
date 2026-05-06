@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface DialogContextType {
-  showAlert: (message: string) => void;
+  showAlert: (message: string, options?: { title?: string; icon?: string }) => void;
   showConfirm: (message: string, onConfirm: () => void, options?: { title?: string; titleColor?: string; icon?: string }) => void;
 }
 
@@ -13,14 +13,21 @@ const DialogContext = createContext<DialogContextType>({
 });
 
 export function DialogProvider({ children }: { children: ReactNode }) {
-  const [alertState, setAlertState] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+  const [alertState, setAlertState] = useState<{ show: boolean; message: string; title: string; icon: string }>({ 
+    show: false, message: '', title: 'Notice', icon: '👻' 
+  });
   const [confirmState, setConfirmState] = useState<{ show: boolean; message: string; onConfirm: () => void; title: string; titleColor: string; icon: string }>({ 
     show: false, message: '', onConfirm: () => {}, title: 'Confirmation', titleColor: 'var(--text-primary)', icon: '❓' 
   });
 
   return (
     <DialogContext.Provider value={{
-      showAlert: (msg) => setAlertState({ show: true, message: msg }),
+      showAlert: (msg, options) => setAlertState({ 
+        show: true, 
+        message: msg, 
+        title: options?.title || 'Notice',
+        icon: options?.icon || '👻'
+      }),
       showConfirm: (msg, onConfirm, options) => setConfirmState({ 
         show: true, message: msg, onConfirm, 
         title: options?.title || 'Confirmation', 
@@ -42,11 +49,11 @@ export function DialogProvider({ children }: { children: ReactNode }) {
             background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 20,
             boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
           }}>
-            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 16 }}>👻</div>
-            <h3 style={{ marginTop: 0, fontSize: 18, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>Notice</h3>
+            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 16 }}>{alertState.icon}</div>
+            <h3 style={{ marginTop: 0, fontSize: 18, color: 'var(--text-primary)', textAlign: 'center', marginBottom: 8 }}>{alertState.title}</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.5, textAlign: 'center', marginBottom: 24 }}>{alertState.message}</p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button className="btn-primary" style={{ minWidth: 120 }} onClick={() => setAlertState({ show: false, message: '' })}>OK</button>
+              <button className="btn-primary" style={{ minWidth: 120 }} onClick={() => setAlertState({ ...alertState, show: false })}>OK</button>
             </div>
           </div>
         </div>
