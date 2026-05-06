@@ -14,10 +14,11 @@ function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: numbe
   const [error, setError] = useState(false);
   if (!user) return <span style={{ fontSize: size * 0.4 }}>?</span>;
 
-  if (user.avatar_url && !error) {
+  const avatar = user.avatar_url || user.mlbb_avatar_url;
+  if (avatar && !error) {
     return (
       <img
-        src={user.avatar_url}
+        src={avatar}
         alt={user.username}
         onError={() => setError(true)}
         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius }}

@@ -60,5 +60,6 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Wallet Trans.', href: '/admin/wallet-transactions', icon: 'Wallet' },
   { label: 'Revenue', href: '/admin/revenue', icon: 'DollarSign' },
   { label: 'Admins', href: '/admin/admins', icon: 'ShieldAccount' },
+  { label: 'Wallet Settings', href: '/admin/wallet-settings', icon: 'Wallet' },
   { label: 'Profile', href: '/admin/profile', icon: 'Users' },
 ];

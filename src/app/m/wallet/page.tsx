@@ -123,7 +123,7 @@ export default function MobileWalletPage() {
         <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.15), transparent)' }} />
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Available Balance</div>
         <div className="font-display gradient-text" style={{ fontSize: 36, fontWeight: 800, marginBottom: 16 }}>
-          {formatCurrency(wallet.balance)}
+          {formatCurrency(Number(wallet.balance || 0))}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
@@ -133,7 +133,7 @@ export default function MobileWalletPage() {
             <div key={s.label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 12px' }}>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>{s.label}</div>
               <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: s.color }}>
-                {formatCurrency(s.value)}
+                {formatCurrency(Number(s.value || 0))}
               </div>
             </div>
           ))}
@@ -201,7 +201,7 @@ export default function MobileWalletPage() {
         <div style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 18, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Amount (MMK)</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Available: <span style={{ color: '#f59e0b', fontWeight: 700 }}>{formatCurrency(wallet.balance)}</span></div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Available: <span style={{ color: '#f59e0b', fontWeight: 700 }}>{formatCurrency(Number(wallet.balance || 0))}</span></div>
           </div>
           <input
             className="input-field" type="number" placeholder="Withdraw amount..."

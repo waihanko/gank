@@ -257,3 +257,16 @@ model BattleMessage {
   @@index([match_id, created_at])
   @@map("battle_messages")
 }
+
+model AdminWallet {
+  id              String   @id @default(uuid())
+  type            String   // e.g., Kpay, Wave Pay
+  account_number  String
+  holder_name     String
+  transaction_type String  @default("BOTH") // WITHDRAWAL, DEPOSIT, BOTH
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("admin_wallets")
+}

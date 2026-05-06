@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin';
 import usersRoutes from './routes/users';
 import notificationsRoutes from './routes/notifications';
 import battleRoomRoutes from './routes/battle-room';
+import adminWalletRoutes from './routes/admin-wallets';
 import { authMiddleware } from './middleware/auth';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/battle-room', battleRoomRoutes);
+app.use('/api/admin/wallets', adminWalletRoutes);
 
 // Telegram bot (polling mode for local dev)
 const bot = createBot();

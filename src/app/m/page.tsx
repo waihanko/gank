@@ -28,15 +28,16 @@ function AvatarBox({ user, size = 40 }: { user: any; size?: number }) {
   const [err, setErr] = useState(false);
   const name = user?.telegram_display_name || user?.username || 'U';
   const initial = name.replace('@', '').charAt(0).toUpperCase();
+  const avatar = user?.avatar_url || user?.mlbb_avatar_url;
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.28, flexShrink: 0,
-      background: user?.avatar_url && !err ? undefined : 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
+      background: avatar && !err ? undefined : 'linear-gradient(135deg, var(--accent-primary), #6d28d9)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden', fontSize: size * 0.38, fontWeight: 700,
     }}>
-      {user?.avatar_url && !err
-        ? <img src={user.avatar_url} alt="" onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      {avatar && !err
+        ? <img src={avatar} alt="" onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : initial}
     </div>
   );
@@ -185,7 +186,14 @@ export default function MobileHomePage() {
       {/* ── Create Challenge button — same class as desktop ── */}
       <button
         className="btn-battle btn-battle-pulse"
-        onClick={() => isLoggedIn ? setShowCreate(true) : (window.location.href = '/login')}
+        onClick={() => {
+          if (!isLoggedIn) { window.location.href = '/login'; return; }
+          if (myMatches.some(m => m.status === 'DISPUTED')) {
+            showAlert('⚠️ You have a disputed match that needs resolution. Please visit the match room and provide evidence or wait for admin review before creating new challenges.', { title: 'Dispute Pending' });
+            return;
+          }
+          setShowCreate(true);
+        }}
         style={{ width: '100%', marginBottom: 20, fontSize: 14, padding: '14px 20px', borderRadius: 14 }}
       >
         🎯 Create Challenge
@@ -239,6 +247,7 @@ export default function MobileHomePage() {
               background: 'var(--bg-tertiary)', border: '2px solid var(--border-secondary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 900, color: '#f59e0b', letterSpacing: 0.5,
+              fontStyle: 'italic',
             }}>
               VS
             </div>
@@ -428,7 +437,7 @@ export default function MobileHomePage() {
                       <AvatarBox user={opponent} size={36} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          vs {opponentName}
+                          <span style={{ color: 'var(--neon-yellow)', marginRight: 4, fontStyle: 'italic' }}>vs</span> {opponentName}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
                           {formatRelativeTime(match.created_at)}

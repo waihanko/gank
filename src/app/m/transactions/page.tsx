@@ -94,14 +94,18 @@ export default function MobileTransactionsPage() {
 
         {/* Wallet balance chip */}
         {balance !== null && (
-          <div style={{
-            padding: '5px 12px',
-            background: 'rgba(234,179,8,0.1)',
-            border: '1px solid rgba(234,179,8,0.25)',
-            borderRadius: 20,
-            fontSize: 12, fontWeight: 700, color: '#f59e0b',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
+          <div 
+            onClick={() => router.push('/m/wallet')}
+            style={{
+              padding: '5px 12px',
+              background: 'rgba(234,179,8,0.1)',
+              border: '1px solid rgba(234,179,8,0.25)',
+              borderRadius: 20,
+              fontSize: 12, fontWeight: 700, color: '#f59e0b',
+              display: 'flex', alignItems: 'center', gap: 4,
+              cursor: 'pointer', transition: 'background 0.2s',
+            }}
+          >
             💰 {balance.toLocaleString()}
             <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500 }}>MMK</span>
           </div>

@@ -14,10 +14,11 @@ function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: numbe
   const [error, setError] = useState(false);
   if (!user) return <span style={{ fontSize: size * 0.4 }}>?</span>;
 
-  if (user.avatar_url && !error) {
+  const avatar = user.avatar_url || user.mlbb_avatar_url;
+  if (avatar && !error) {
     return (
       <img
-        src={user.avatar_url}
+        src={avatar}
         alt={user.username}
         onError={() => setError(true)}
         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius }}
@@ -381,12 +382,25 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
   );
 
   return (
-    <div className="mobile-battle-room" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}>
-      {/* Top Navbar */}
+    <div className="mobile-battle-room" style={{ 
+      position: 'fixed', 
+      top: 64, 
+      bottom: 65, 
+      left: '50%', 
+      transform: 'translateX(-50%)', 
+      width: '100%', 
+      maxWidth: 480, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      background: 'var(--bg-primary)', 
+      overflow: 'hidden',
+      zIndex: 40
+    }}>
+      {/* Top Navbar - Locked inside fixed container */}
       <div style={{
         height: 60, background: 'rgba(10, 10, 15, 0.8)', backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--border-secondary)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12,
-        position: 'sticky', top: 0, zIndex: 50, flexShrink: 0
+        flexShrink: 0, zIndex: 10
       }}>
         <button onClick={() => router.back()} style={{ 
           background: 'var(--bg-tertiary)', border: '1px solid var(--border-secondary)', borderRadius: 12, 
@@ -464,7 +478,7 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
         <div style={{ 
           padding: '12px 16px', borderTop: '1px solid var(--border-secondary)', 
           background: 'rgba(10, 10, 15, 0.95)', backdropFilter: 'blur(20px)',
-          marginBottom: 55, flexShrink: 0 
+          flexShrink: 0 
         }}>
           <form onSubmit={sendMessage} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input
@@ -500,7 +514,7 @@ export default function MobileBattleRoomPage({ params }: { params: Promise<{ id:
         <div style={{
           padding: '12px 16px', borderTop: '1px solid rgba(239,68,68,0.3)',
           background: 'rgba(10,10,15,0.97)', backdropFilter: 'blur(20px)',
-          marginBottom: 55, flexShrink: 0,
+          flexShrink: 0,
         }}>
           {evidenceSubmitted ? (
             <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 13, color: 'var(--neon-green)' }}>

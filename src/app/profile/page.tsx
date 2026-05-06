@@ -31,7 +31,17 @@ export default function ProfilePage() {
   const [tgGroupLink, setTgGroupLink] = useState('');
   const [vc, setVc] = useState('');
   const [codeSent, setCodeSent] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [mlbbProfile, setMlbbProfile] = useState<{ mlbb_ign: string; avatar_url: string; level: number; rank_level: number; reg_country: string } | null>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   useEffect(() => {
     if (!loading && !isLoggedIn) {
@@ -73,6 +83,7 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!data.success) { setError(data.error); return; }
       setCodeSent(true);
+      setTimer(60);
     } catch {
       setError('Failed to send verification code.');
     } finally {
@@ -107,7 +118,12 @@ export default function ProfilePage() {
       const res = await fetch(`${API_URL}/api/users/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ mlbb_server_id: serverId, mlbb_zone_id: zoneId, mlbb_ign: mlbbIgn })
+        body: JSON.stringify({ 
+          mlbb_server_id: serverId, 
+          mlbb_zone_id: zoneId, 
+          mlbb_ign: mlbbIgn,
+          mlbb_avatar_url: mlbbProfile?.avatar_url
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -223,8 +239,8 @@ export default function ProfilePage() {
       <Navbar />
       <div className="page-container" style={{ maxWidth: 700, margin: '0 auto', padding: '40px 24px 80px' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          {p.avatar_url ? (
-            <img src={p.avatar_url as string} alt="Avatar" style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-primary)', margin: '0 auto 16px', display: 'block' }} />
+          {p.avatar_url || p.mlbb_avatar_url ? (
+            <img src={(p.avatar_url || p.mlbb_avatar_url) as string} alt="Avatar" style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-primary)', margin: '0 auto 16px', display: 'block' }} />
           ) : (
             <div style={{ width: 88, height: 88, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 16px', color: 'white', fontWeight: 700, border: '3px solid var(--accent-primary)' }}>
               {((p.telegram_display_name as string) || (p.telegram_username as string)?.replace('@', '') || (p.username as string) || 'U').charAt(0).toUpperCase()}
@@ -273,9 +289,6 @@ export default function ProfilePage() {
         {/* Account Info */}
         <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>🎮 Account Details</h3>
-          <div style={{ fontSize: 11, color: 'var(--neon-yellow)', marginBottom: 16 }}>
-            ⚠️ Note: Telegram Username can only be changed once every 30 days.
-          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             
@@ -369,8 +382,37 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <>
-                    <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Verification Code</label>
-                    <input className="input-field" value={vc} onChange={e => setVc(e.target.value)} maxLength={4} style={{ width: '100%', marginBottom: 20, letterSpacing: 4, fontWeight: 700 }} placeholder="4-digit code" />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--neon-cyan)' }}>Verification Code</label>
+                      {timer > 0 ? (
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Resend in {timer}s</span>
+                      ) : (
+                        <button 
+                          onClick={handleSendVc} 
+                          disabled={saving}
+                          style={{ background: 'none', border: 'none', color: 'var(--neon-yellow)', fontSize: 10, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                        >
+                          Resend
+                        </button>
+                      )}
+                    </div>
+                    <input className="input-field" value={vc} onChange={e => setVc(e.target.value)} maxLength={4} style={{ width: '100%', marginBottom: 8, letterSpacing: 4, fontWeight: 700 }} placeholder="4-digit code" />
+                    
+                    <div 
+                      onClick={() => setShowInstructions(true)}
+                      style={{ 
+                        fontSize: 10, 
+                        color: 'var(--text-muted)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 4, 
+                        marginBottom: 16, 
+                        cursor: 'pointer',
+                        width: 'fit-content'
+                      }}
+                    >
+                      📖 <span style={{ textDecoration: 'underline' }}>How to find code?</span>
+                    </div>
                     <div style={{ display: 'flex', gap: 12 }}>
                       <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setCodeSent(false)}>Back</button>
                       <button className="btn-primary" style={{ flex: 1 }} onClick={handleVerifyVc} disabled={saving || vc.length !== 4}>{saving ? 'Verifying...' : 'Verify'}</button>
@@ -500,6 +542,54 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      {/* Instructions Dialog */}
+      {showInstructions && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: 20
+        }} onClick={() => setShowInstructions(false)}>
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
+            borderRadius: 24, maxWidth: 600, width: '100%', padding: 24,
+            position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            animation: 'modalFadeIn 0.3s ease'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 className="font-display" style={{ fontSize: 20, fontWeight: 800 }}>
+                📖 <span className="gradient-text">How to find code?</span>
+              </h3>
+              <button onClick={() => setShowInstructions(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 24, cursor: 'pointer' }}>×</button>
+            </div>
+            
+            <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-secondary)', marginBottom: 20 }}>
+              <img 
+                src="/mlbb_instructions.png" 
+                alt="MLBB Instructions" 
+                style={{ width: '100%', height: 'auto', display: 'block' }} 
+              />
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <p style={{ marginBottom: 10 }}>1. Open <strong>Mobile Legends</strong> on your device.</p>
+              <p style={{ marginBottom: 10 }}>2. Tap the <strong>Mail</strong> icon at the top of the main menu.</p>
+              <p>3. Find the message titled <strong>&quot;Verification Code&quot;</strong> to get your 4-digit code.</p>
+            </div>
+
+            <button className="btn-primary" style={{ width: '100%', marginTop: 24, justifyContent: 'center' }} onClick={() => setShowInstructions(false)}>
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes modalFadeIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </>
   );
 }

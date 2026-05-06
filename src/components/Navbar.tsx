@@ -235,9 +235,9 @@ export default function Navbar() {
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
-                {user?.avatar_url ? (
+                {user?.avatar_url || (user as any)?.mlbb_avatar_url ? (
                   <img
-                    src={user.avatar_url}
+                    src={user.avatar_url || (user as any).mlbb_avatar_url}
                     alt="Avatar"
                     style={{
                       width: 40, height: 40, borderRadius: '50%', objectFit: 'cover',

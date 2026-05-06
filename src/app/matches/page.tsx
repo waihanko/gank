@@ -17,10 +17,11 @@ function MatchAvatar({ user, size, borderRadius = 14 }: { user: any, size: numbe
   const [error, setError] = useState(false);
   if (!user) return <span>?</span>;
 
-  if (user.avatar_url && !error) {
+  const avatar = user.avatar_url || user.mlbb_avatar_url;
+  if (avatar && !error) {
     return (
       <img
-        src={user.avatar_url}
+        src={avatar}
         alt={user.username}
         onError={() => setError(true)}
         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius }}
@@ -120,6 +121,11 @@ export default function MatchesPage() {
     
     const val = Number(stakeInput);
     if (!val || val < 1000) return showAlert('Minimum stake is 1000 MMK');
+
+    if (myRecentMatches.some(m => m.status === 'DISPUTED')) {
+      showAlert('⚠️ You have a disputed match that needs resolution. Please visit the match room and provide evidence or wait for admin review before creating new challenges.', { title: 'Dispute Pending' });
+      return;
+    }
 
     setCreating(true);
     try {
@@ -241,7 +247,13 @@ export default function MatchesPage() {
               Browse open challenges or create your own
             </p>
           </div>
-          <button className="btn-battle btn-battle-pulse" onClick={() => handleAuthAction(() => setShowCreateModal(true))}>
+          <button className="btn-battle btn-battle-pulse" onClick={() => handleAuthAction(() => {
+            if (myRecentMatches.some(m => m.status === 'DISPUTED')) {
+              showAlert('⚠️ You have a disputed match that needs resolution. Please visit the match room and provide evidence or wait for admin review before creating new challenges.', { title: 'Dispute Pending' });
+              return;
+            }
+            setShowCreateModal(true);
+          })}>
             🎯 Create Challenge
           </button>
         </div>
@@ -409,16 +421,16 @@ export default function MatchesPage() {
                     {deleting ? '...' : `🗑️ Cancel (${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')})`}
                   </button>
                 )}
-                {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION'].includes(match.status) && (
-                  <button className="btn-telegram" style={{ width: '100%' }} onClick={() => router.push('/battle/' + match.id)}>
-                    📱 Open Battle Room
+                {['ACCEPTED', 'WAITING', 'READY_CHECK', 'NEGOTIATION', 'BATTLE', 'SUBMISSION', 'DISPUTED'].includes(match.status) && (
+                  <button className="btn-telegram" style={{ width: '100%', background: match.status === 'DISPUTED' ? 'linear-gradient(135deg, #ef4444, #991b1b)' : undefined }} onClick={() => router.push('/battle/' + match.id)}>
+                    {match.status === 'DISPUTED' ? '⚠️ View Dispute' : '📱 Open Battle Room'}
                   </button>
                 )}
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                   {/* Duration on Left */}
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {match.started_at && match.completed_at ? (
+                    {match.status === 'COMPLETED' && match.started_at && match.completed_at ? (
                       `⏱️ ${Math.floor((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) / 60000)}m ${Math.floor(((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) % 60000) / 1000)}s`
                     ) : match.status === 'BATTLE' ? (
                       '⚔️ Battling...'
@@ -609,6 +621,13 @@ export default function MatchesPage() {
                       style={{ fontSize: 11 }}
                     >
                       🗑️ Delete
+                    </button>
+                  )}
+
+                  {/* View Dispute for any user if disputed */}
+                  {match.status === 'DISPUTED' && (
+                    <button className="btn-danger btn-sm" onClick={() => router.push('/battle/' + match.id)} style={{ fontSize: 11 }}>
+                      ⚠️ View Dispute
                     </button>
                   )}
 

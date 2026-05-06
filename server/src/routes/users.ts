@@ -67,10 +67,6 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
     const updates: any = {};
 
     if (telegram_username && telegram_username !== user.telegram_username) {
-      if (user.last_telegram_change && (now.getTime() - user.last_telegram_change.getTime()) < thirtyDays) {
-        res.status(400).json({ success: false, error: 'Telegram username can only be changed once every 30 days.' });
-        return;
-      }
       const existing = await prisma.user.findUnique({ where: { telegram_username } });
       if (existing) {
         res.status(400).json({ success: false, error: 'Telegram username already taken.' });
@@ -85,22 +81,27 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
       updates.last_telegram_change = now;
     }
 
-    if ((mlbb_server_id && mlbb_server_id !== user.mlbb_server_id) || (mlbb_zone_id && mlbb_zone_id !== user.mlbb_zone_id)) {
-      if (user.last_mlbb_change && (now.getTime() - user.last_mlbb_change.getTime()) < thirtyDays) {
-        res.status(400).json({ success: false, error: 'MLBB Server/Zone ID can only be changed once every 30 days.' });
-        return;
-      }
-      
+    if (
+      (mlbb_server_id && mlbb_server_id !== user.mlbb_server_id) || 
+      (mlbb_zone_id && mlbb_zone_id !== user.mlbb_zone_id) ||
+      (mlbb_ign && mlbb_ign !== user.mlbb_ign) ||
+      (req.body.mlbb_avatar_url && req.body.mlbb_avatar_url !== user.mlbb_avatar_url)
+    ) {
       updates.mlbb_server_id = mlbb_server_id || user.mlbb_server_id;
       updates.mlbb_zone_id = mlbb_zone_id || user.mlbb_zone_id;
       if (mlbb_ign) updates.mlbb_ign = mlbb_ign;
+      if (req.body.mlbb_avatar_url) {
+        updates.mlbb_avatar_url = req.body.mlbb_avatar_url;
+        updates.avatar_url = req.body.mlbb_avatar_url;
+      }
       updates.last_mlbb_change = now;
     }
 
     if (Object.keys(updates).length > 0) {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: updates
+        data: updates,
+        include: { wallet: true }
       });
       res.json({
         success: true,

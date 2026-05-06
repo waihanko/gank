@@ -244,7 +244,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
             <div className="glass-card" style={{ padding: 20 }}>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Duration</div>
               <div style={{ fontSize: 15, fontWeight: 700 }}>
-                {match.started_at && match.completed_at ? (
+                {match.status === 'COMPLETED' && match.started_at && match.completed_at ? (
                   `${Math.floor((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) / 60000)}m ${Math.floor(((new Date(match.completed_at).getTime() - new Date(match.started_at).getTime()) % 60000) / 1000)}s`
                 ) : 'N/A'}
               </div>

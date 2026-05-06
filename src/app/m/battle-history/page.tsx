@@ -157,7 +157,7 @@ export default function MobileBattleHistoryPage() {
                   
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      vs {opponent?.username || 'Waiting...'}
+                      <span style={{ color: 'var(--neon-yellow)', marginRight: 4, fontStyle: 'italic' }}>vs</span> {opponent?.username || 'Waiting...'}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       {formatDate(m.created_at)}

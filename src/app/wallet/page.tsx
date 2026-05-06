@@ -179,7 +179,7 @@ export default function WalletPage() {
               Available Balance
             </div>
             <div className="font-display gradient-text" style={{ fontSize: 32, fontWeight: 800 }}>
-              {formatCurrency(wallet.balance)}
+              {formatCurrency(Number(wallet.balance || 0))}
             </div>
           </div>
 
@@ -188,7 +188,7 @@ export default function WalletPage() {
               🧊 Frozen
             </div>
             <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-blue)' }}>
-              {formatCurrency(wallet.frozen_amount)}
+              {formatCurrency(Number(wallet.frozen_amount || 0))}
             </div>
           </div>
 
@@ -197,16 +197,7 @@ export default function WalletPage() {
               🏆 Total Won
             </div>
             <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-green)' }}>
-              {formatCurrency(wallet.total_won)}
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-              💸 Total Lost
-            </div>
-            <div className="font-display" style={{ fontSize: 32, fontWeight: 800, color: 'var(--neon-red)' }}>
-              {formatCurrency(wallet.total_lost)}
+              {formatCurrency(Number(wallet.total_won || 0))}
             </div>
           </div>
         </div>
@@ -308,7 +299,7 @@ export default function WalletPage() {
                 style={{ marginBottom: 4 }}
               />
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-                Available: {formatCurrency(wallet.balance)}
+                Available: {formatCurrency(Number(wallet.balance || 0))}
               </p>
               <button className="btn-danger" onClick={handleWithdraw} style={{ width: '100%', justifyContent: 'center', padding: 14 }}>
                 📤 Withdraw to Bank
@@ -352,7 +343,7 @@ export default function WalletPage() {
                       </td>
                       <td>
                         <span className="font-display" style={{ fontWeight: 700, color: 'var(--neon-yellow)' }}>
-                          {formatCurrency(tx.amount)}
+                          {formatCurrency(Number(tx.amount || 0))}
                         </span>
                       </td>
                       <td>
@@ -417,7 +408,7 @@ export default function WalletPage() {
                 Deposit Amount
               </div>
               <div className="font-display gradient-text" style={{ fontSize: 28, fontWeight: 800 }}>
-                {formatCurrency(confirmDialog.amount)}
+                {formatCurrency(Number(confirmDialog.amount || 0))}
               </div>
             </div>
 
