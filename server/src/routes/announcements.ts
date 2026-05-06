@@ -62,7 +62,7 @@ router.put('/:id', adminMiddleware, async (req: Request, res: Response) => {
     const { id } = req.params;
     const { title, content, image_url, link_url, starts_at, ends_at, is_active } = req.body;
     const announcement = await prisma.announcement.update({
-      where: { id },
+      where: { id: id as string },
       data: {
         title,
         content,
@@ -83,7 +83,7 @@ router.put('/:id', adminMiddleware, async (req: Request, res: Response) => {
 router.delete('/:id', adminMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await prisma.announcement.delete({ where: { id } });
+    await prisma.announcement.delete({ where: { id: id as string } });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to delete announcement' });
